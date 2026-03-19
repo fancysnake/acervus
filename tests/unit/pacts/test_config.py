@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from acervus.specs.config import AcervusConfig
+from acervus.pacts.config import AcervusConfig
 
 SAMPLE_DB_PATH = Path("/home/user/.local/share/acervus/acervus.db")
 
