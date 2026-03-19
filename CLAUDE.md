@@ -30,21 +30,18 @@ never Django models.
 
 Enforced by `importlinter` in `pyproject.toml`.
 
-Relation `X -> Y` means (Y can import X). Transitive and reflexive.
+| Layer | CAN import | CANNOT import |
+|-------|-----------|---------------|
+| pacts | nothing | gates, links, inits, mills, specs, edges |
+| specs | pacts | gates, links, inits, mills, edges |
+| mills | pacts | gates, links, inits, specs, edges |
+| links | pacts, mills | gates, inits, specs, edges |
+| gates | pacts, mills | links, inits, specs, edges |
+| inits | pacts, specs, mills, links, gates | edges |
+| edges | nothing | gates, links, inits, mills, pacts, specs |
 
-`pacts` -> `specs` -> `mills` -> `links` -> `gates` -> `inits`
-
-| Layer | Cannot import |
-|-------|---------------|
-| pacts | gates, links, inits, mills, specs, edges, django |
-| specs | gates, links, inits, mills, edges, django |
-| mills | gates, links, inits, specs, edges, django |
-| links | gates, inits, specs, edges |
-| gates | links, inits, specs, edges |
-| inits | edges |
-| edges | gates, links, inits, mills, pacts, specs |
-
-Edges are outside of the import system — not imported by any layer.
+Only `inits` can wire specs, links, and gates together. Edges are outside
+of the import system — not imported by any layer.
 
 ### Data flow
 
