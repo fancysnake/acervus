@@ -95,6 +95,7 @@ warn_unused_ignores = true
 module = [
     "acervus.gates.cli.*",
     "acervus.inits.wiring",
+    "acervus.links.db.*",
 ]
 disallow_any_expr = false
 disallow_any_decorated = false
