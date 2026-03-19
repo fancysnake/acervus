@@ -1,12 +1,10 @@
-"""Tests for config loading in inits."""
+"""Tests for config loading."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
-from acervus.inits.config import load_config
+from acervus.mills.config import load_config
 
 SAMPLE_TOML = """\
 [acervus]
@@ -35,8 +33,7 @@ class TestLoadConfig:
         }
 
     @staticmethod
-    def test_missing_file_raises(tmp_path):
+    def test_missing_file_returns_none(tmp_path):
         missing = tmp_path / "nonexistent.toml"
 
-        with pytest.raises(FileNotFoundError):
-            load_config(missing)
+        assert load_config(missing) is None

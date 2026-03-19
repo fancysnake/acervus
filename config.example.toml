@@ -1,0 +1,6 @@
+[acervus]
+db_path = "~/.local/share/acervus/acervus.db"
+
+[acervus.roots]
+# docs = "/home/user/docs"
+# photos = "/home/user/photos"

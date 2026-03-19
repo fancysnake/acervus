@@ -1,4 +1,4 @@
-"""Specs — configuration model for Acervus."""
+"""Pacts — configuration model for Acervus."""
 
 from __future__ import annotations
 
