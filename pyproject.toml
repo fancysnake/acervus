@@ -31,7 +31,8 @@ dev = [
     "import-linter (>=2.11,<3.0)",
     "pylint (>=4.0.5,<5.0.0)",
     "pytest (>=9.0.2,<10.0.0)",
-    "diff-cover (>=10.2.0,<11.0.0)"
+    "diff-cover (>=10.2.0,<11.0.0)",
+    "pytest-cov (>=7.0.0,<8.0.0)"
 ]
 
 [tool.black]
@@ -81,7 +82,7 @@ disallow_untyped_decorators = true
 disallow_untyped_defs = true
 exclude = []
 python_version = "3.14"
-plugins = []
+plugins = ["pydantic.mypy"]
 warn_incomplete_stub = true
 warn_no_return = true
 warn_redundant_casts = true
@@ -89,6 +90,10 @@ warn_return_any = true
 warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
 
 # RUFF
 
