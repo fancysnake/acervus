@@ -1,0 +1,213 @@
+[project]
+name = "acervus"
+version = "0.1.0"
+description = "Filesystem tagging tool"
+authors = [
+    {name = "Radosław Ganczarek",email = "radoslaw@ganczarek.in"}
+]
+license = {text = "BSD-3-Clause license"}
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "click (>=8.3.1,<9.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
+[dependency-groups]
+dev = [
+    "black (>=26.3.1,<27.0.0)",
+    "ruff (>=0.15.7,<0.16.0)",
+    "codespell (>=2.4.2,<3.0.0)",
+    "mypy (>=1.19.1,<2.0.0)",
+    "import-linter (>=2.11,<3.0)",
+    "pylint (>=4.0.5,<5.0.0)",
+    "pytest (>=9.0.2,<10.0.0)",
+    "diff-cover (>=10.2.0,<11.0.0)"
+]
+
+[tool.black]
+line-length = 88
+preview = true
+skip-magic-trailing-comma = true
+target-version = ['py314']
+
+# COVERAGE
+
+[tool.coverage.run]
+branch = true
+source = ["src", "tests"]
+omit = [
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:", "# pragma: no cover"]
+precision = 2
+
+# DEPTRY
+
+[tool.deptry]
+known_first_party = ["acervus"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = [
+]
+DEP004 = []
+
+# MYPY
+
+[tool.mypy]
+check_untyped_defs = true
+color_output = true
+disallow_any_decorated = true
+disallow_any_explicit = true
+disallow_any_expr = true
+disallow_any_generics = true
+disallow_any_unimported = true
+disallow_incomplete_defs = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+exclude = []
+python_version = "3.14"
+plugins = []
+warn_incomplete_stub = true
+warn_no_return = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+
+# RUFF
+
+[tool.ruff]
+fix = false
+line-length = 88
+output-format = 'concise'
+preview = true
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "CPY",  # Missing copyright notice at top of file
+    "D1", #Missing docstring
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**.py" = [
+    "ANN",     # flake8-annotations
+    "S",       # bandit
+]
+
+[tool.ruff.lint.flake8-pytest-style]
+parametrize-values-type = "tuple"
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+# IMPORT LINTER
+
+[tool.importlinter]
+include_external_packages = "True"
+root_package = "acervus"
+
+# Explanation <source_modules> can't import <forbidden_modules>
+
+[[tool.importlinter.contracts]]
+name = "gates"
+type = "forbidden"
+source_modules = ["acervus.gates"]
+forbidden_modules = [
+    "acervus.links",
+    "acervus.inits",
+    "acervus.specs",
+    "acervus.edges",
+]
+
+
+[[tool.importlinter.contracts]]
+name = "links"
+type = "forbidden"
+source_modules = ["acervus.links"]
+forbidden_modules = [
+    "acervus.gates",
+    "acervus.inits",
+    "acervus.specs",
+    "acervus.edges",
+]
+
+
+[[tool.importlinter.contracts]]
+name = "inits"
+type = "forbidden"
+source_modules = ["acervus.inits"]
+forbidden_modules = ["acervus.edges"]
+
+
+[[tool.importlinter.contracts]]
+name = "mills"
+type = "forbidden"
+source_modules = ["acervus.mills"]
+forbidden_modules = [
+    "acervus.gates",
+    "acervus.links",
+    "acervus.inits",
+    "acervus.specs",
+    "acervus.edges",
+]
+
+
+[[tool.importlinter.contracts]]
+name = "pacts"
+type = "forbidden"
+source_modules = ["acervus.pacts"]
+forbidden_modules = [
+    "acervus.gates",
+    "acervus.links",
+    "acervus.inits",
+    "acervus.mills",
+    "acervus.specs",
+    "acervus.edges",
+]
+
+
+[[tool.importlinter.contracts]]
+name = "specs"
+type = "forbidden"
+source_modules = ["acervus.specs"]
+forbidden_modules = [
+    "acervus.gates",
+    "acervus.links",
+    "acervus.inits",
+    "acervus.mills",
+    "acervus.edges",
+]
+
+
+[[tool.importlinter.contracts]]
+name = "edges"
+type = "forbidden"
+source_modules = ["acervus.edges"]
+forbidden_modules = [
+    "acervus.gates",
+    "acervus.links",
+    "acervus.inits",
+    "acervus.mills",
+    "acervus.pacts",
+    "acervus.specs",
+]
