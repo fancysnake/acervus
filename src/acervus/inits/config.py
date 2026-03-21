@@ -6,7 +6,7 @@ import tomllib
 from pathlib import Path
 from typing import cast
 
-from acervus.pacts.config import AcervusConfig
+from acervus.specs import AcervusConfig
 
 DEFAULT_CONFIG_PATH = Path("~/.config/acervus/config.toml")
 

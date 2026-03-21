@@ -1,5 +1,6 @@
 """Dependency injection and application wiring."""
 
-from acervus.gates.cli.commands import cli
+from acervus.inits.di import DependencyInjector
+from acervus.inits.wiring import cli
 
-__all__ = ["cli"]
+__all__ = ["DependencyInjector", "cli"]

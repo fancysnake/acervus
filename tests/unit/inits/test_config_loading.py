@@ -1,10 +1,10 @@
-"""Tests for config loading."""
+"""Tests for config loading in inits."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from acervus.mills.config import load_config
+from acervus.inits.config import load_config
 
 SAMPLE_TOML = """\
 [acervus]
@@ -26,6 +26,7 @@ class TestLoadConfig:
 
         config = load_config(config_path)
 
+        assert config is not None
         assert config.db_path == SAMPLE_DB_PATH
         assert config.roots == {
             "docs": Path("/home/user/docs"),

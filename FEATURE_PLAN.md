@@ -104,7 +104,7 @@ Each step follows TDD: write tests (red) -> implement (green) -> verify with `mi
 
 ---
 
-### Step 3: inits — Config loading + DI bootstrap
+### Step 3: inits — Config loading + DI bootstrap [x]
 
 **Tests first:** `tests/unit/inits/test_config_loading.py` — load from temp TOML file
 
