@@ -92,7 +92,7 @@ Each step follows TDD: write tests (red) -> implement (green) -> verify with `mi
 
 ---
 
-### Step 2: specs — Configuration model
+### Step 2: specs — Configuration model [x]
 
 **Tests first:** `tests/unit/specs/test_config.py` — config validation
 
