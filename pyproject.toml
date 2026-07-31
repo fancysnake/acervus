@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-acre = "acervus.inits:main"
+acre = "acervus.inits.wiring:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

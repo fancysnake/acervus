@@ -1,5 +1,1 @@
-"""Application wiring."""
-
-from acervus.inits.wiring import main
-
-__all__ = ["main"]
+"""Inits — config loading, dependency wiring, and the entry point."""
