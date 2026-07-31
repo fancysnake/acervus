@@ -10,11 +10,11 @@ Naming: **acervus** = project, **acre** = the installed command, **mark** = labe
 
 Python 3.14, Poetry for dependencies, mise for tooling and tasks.
 
-## State of the repo (read before trusting the docs)
+## State of the repo
 
-The project is an early MVP and **`README.md` and `FEATURE_PLAN.md` are stale**. Both describe a Click CLI with an `acre status` command and entry point `acervus.inits:cli`. That code has been deleted. The actual entry point is `acervus.inits:main` (`pyproject.toml`), which loads config and launches a **Textual TUI** (`acervus.gates.tui.textual.app.AcervusApp`). Click is not a dependency; `textual` is.
+The project is an early MVP. The entry point is `acervus.inits.wiring:main` (`pyproject.toml`), which loads config and launches a **Textual TUI** (`acervus.gates.tui.textual.app.AcervusApp`). Click is not a dependency; `textual` is.
 
-Consequently `links/` has models and an engine but no repositories, `mills/` is empty, and the `UnitOfWorkProtocol` / `*RepositoryProtocol` in `pacts/protocols.py` have no implementations yet. `DependencyInjector` currently holds only a config, and the TUI receives `db_path`/`roots` directly rather than through a unit of work.
+What exists today: `pacts/config.py` (`AcervusConfig`), `inits/config.py` (`load_config`), `inits/wiring.py` (`main`), `links/db/sqlalchemy/{models,engine}.py`, and the TUI shell. What does not: `mills/` and `specs/` are empty, there are no repositories, no protocols, and no DI container — the TUI still receives `db_path`/`roots` directly instead of a services container. `FEATURE_PLAN.md` is the plan for closing that gap and is current.
 
 ## Commands
 
@@ -37,7 +37,7 @@ mise run p <cmd>         # run poetry <cmd>
 Run a single test through poetry:
 
 ```bash
-mise run p run pytest tests/unit/specs/test_config.py -k test_empty_roots
+mise run p run pytest tests/unit/pacts/test_config.py -k test_empty_roots
 ```
 
 ### Broken aggregate tasks
@@ -49,25 +49,31 @@ mise run p run pytest tests/unit/specs/test_config.py -k test_empty_roots
 - `shitcheck` — calls `scripts/shitcheck.sh`; there is no `scripts/` directory.
 - `test:*:cov:diff` — reference `acervus.adapters.web`, a package that does not exist.
 
-`lint:ruff` currently fails on pre-existing `COM812` (missing trailing comma) findings. Black runs with `skip-magic-trailing-comma`, so `format:black` strips commas that ruff then demands; running `format:ruff` after black settles it.
+Black runs with `skip-magic-trailing-comma`, so `format:black` strips trailing commas that ruff then demands back as `COM812`. Run `format:ruff` after `format:black` to settle them.
 
 ## Architecture: GLIMPSE layers
 
 Seven layers, with import direction enforced by import-linter contracts in `pyproject.toml` (`mise run lint:import-linter`). A change that violates the table fails the build.
 
-| Layer     | CAN import                        | Holds                                             |
-|-----------|-----------------------------------|---------------------------------------------------|
-| **pacts** | nothing                           | protocols, Pydantic DTOs, frozen dataclasses, exceptions |
-| **specs** | pacts                             | configuration models (`AcervusConfig`)            |
-| **mills** | pacts                             | pure business logic; dependencies via constructor |
-| **links** | pacts, mills                      | data access — SQLAlchemy models, engine, repositories |
-| **gates** | pacts, mills                      | entry points — the Textual TUI                    |
-| **inits** | pacts, specs, mills, links, gates | config loading, DI, the `main()` entry point      |
-| **edges** | nothing                           | infrastructure boundary (currently empty)         |
+| Layer     | CAN import                  | Holds                                             |
+|-----------|-----------------------------|---------------------------------------------------|
+| **pacts** | nothing                     | protocols, Pydantic DTOs, frozen dataclasses, exceptions — including `AcervusConfig` |
+| **specs** | pacts                       | pure business invariants (empty until one exists) |
+| **mills** | pacts, specs                | pure business logic; dependencies via constructor |
+| **links** | pacts, mills                | data access — SQLAlchemy models, engine, repositories |
+| **gates** | pacts, mills                | entry points — the Textual TUI                    |
+| **inits** | pacts, mills, links, gates  | config loading, DI, the `main()` entry point      |
+| **edges** | nothing                     | infrastructure boundary (currently empty)         |
 
-The load-bearing consequence: **only `inits` may wire `specs`, `links`, and `gates` together.** Gates and mills cannot import `links` or `specs` at all, so a TUI screen can never touch a SQLAlchemy model or read config directly — it receives DTOs and plain values handed down from `inits`. `edges` is outside the import graph; nothing imports it.
+Two consequences carry the weight. **Only `inits` may wire `links` and `gates` together** — gates and mills cannot import `links` at all, so a TUI screen can never touch a SQLAlchemy model; it receives DTOs and services handed down from `inits`. And **`specs` is reachable from `mills` alone** — it holds pure business invariants, not configuration. `AcervusConfig` lives in `pacts` because it is a data contract crossing inits → gates. `edges` is outside the import graph; nothing may import it.
 
-Repositories, when written, implement a protocol declared in `pacts` and return Pydantic DTOs (`ConfigDict(from_attributes=True)`), never ORM models. The DTO field sets in `pacts/dtos.py` mirror the models in `links/db/models.py`.
+### Slicing
+
+`pacts`, `mills` and `specs` slice by **noun** (root, file, mark, stack), and `pacts` and `mills` must mirror each other. A pacts noun module holds every contract for that noun together — DTO, write TypedDict, repository protocol, errors. Do not create `pacts/dtos.py` or `pacts/protocols.py`; that slices by technical kind.
+
+`links` slices `{port}/{adapter}/{kind}` (`links/db/sqlalchemy/models.py`), `gates` slices `{port}/{adapter}/{page}` (`gates/tui/textual/app.py`). The `links/db/sqlalchemy/__init__.py` facade is the adapter's public surface and re-exports repositories only — models, the declarative base and the engine stay internal. Every other `__init__.py` stays empty; import symbols from the module that defines them.
+
+Repositories implement a protocol declared in `pacts`, declare it as a base class, and return Pydantic DTOs (`ConfigDict(from_attributes=True)`), never ORM models. Services take the specific repository protocols they use plus a `TransactionProtocol` by constructor — there is no Unit of Work.
 
 ## Type checking
 
@@ -77,11 +83,12 @@ Ruff runs `select = ["ALL"]` in preview mode, ignoring only `CPY` and `D1`. Test
 
 ## Testing
 
-`tests/unit/` mirrors `src/`; `tests/integration/` exercises entry points. `asyncio_mode = "auto"`, so async tests need no marker.
+The layer under test dictates the test type. `tests/unit/` mirrors `src/`; `tests/integration/` covers everything that touches IO. `asyncio_mode = "auto"`, so async tests need no marker.
 
 - Group tests in classes; test methods are `@staticmethod`.
-- Unit tests cover mills, pacts, specs, and functions — no database, no entry points.
-- Integration tests cover the TUI via Textual's `app.run_test()` pilot. Repositories are not tested directly; they are covered through integration tests.
+- Unit tests cover `mills`, `pacts`, `specs` and pure functions — no filesystem, no database, no entry points. Mock at the highest level and assert every mock call.
+- Integration tests cover `links`, `gates` and the IO-bearing parts of `inits`, against real infrastructure: repositories against a real SQLite file, the TUI via Textual's `app.run_test()` pilot. Test repositories directly, not only through a screen.
+- Never raise coverage on an IO-bearing layer with a mock-everything unit test.
 - Spell out magic numbers with an arithmetic comment: `assert len(config.roots) == 1 + 1  # docs + photos`.
 
 ## Conventions
