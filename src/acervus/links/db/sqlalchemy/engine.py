@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import create_engine
 
-from acervus.links.db.models import Base
+from acervus.links.db.sqlalchemy.models import Base
 
 if TYPE_CHECKING:
     from pathlib import Path
