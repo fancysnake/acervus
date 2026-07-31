@@ -2,310 +2,261 @@
 
 ## Context
 
-Acervus is a CLI file-tagging tool (like TMSU). Organizes files via marks (labels) and stacks (groups). SQLite database, TOML config, paths relative to named roots. CLI command: `acre`.
+Acervus is a filesystem tagging tool (like TMSU). It indexes files under named
+**roots** and organizes them with **marks** (labels, many-to-many) and **stacks**
+(a file belongs to at most one). Files stay where they are; the index lives in a
+local SQLite database.
 
-**Naming:** acervus (project), acre (CLI), mark (label), stack (file group).
+**Naming:** acervus (project), acre (the installed command), mark (label), stack
+(file group).
 
-Architecture: GLIMPSE layering, SQLAlchemy + SQLite, Click CLI.
+Architecture: GLIMPSE layering, SQLAlchemy + SQLite, a Textual TUI. Entry point
+`acervus.inits.wiring:main`.
 
-## Import Rules (from pyproject.toml)
+## Import rules (enforced by `mise run lint:import-linter`)
 
 | Layer | CAN import | CANNOT import |
 |-------|-----------|---------------|
 | pacts | nothing | gates, links, inits, mills, specs, edges |
 | specs | pacts | gates, links, inits, mills, edges |
-| mills | pacts | gates, links, inits, specs, edges |
+| mills | pacts, specs | gates, links, inits, edges |
 | links | pacts, mills | gates, inits, specs, edges |
 | gates | pacts, mills | links, inits, specs, edges |
-| inits | pacts, specs, mills, links, gates | edges |
-| edges | nothing | gates, links, inits, mills, pacts, specs |
+| inits | pacts, mills, links, gates | specs, edges |
+| edges | nothing | everything |
 
-**Key constraint:** Only `inits` can wire specs, links, and gates together. Gates and mills cannot import links or specs directly.
+Two constraints do the load-bearing work. **Only `inits` may wire `links` and
+`gates` together** — a TUI screen can never touch a SQLAlchemy model, so it
+receives DTOs and services handed down from `inits`. And **`specs` is reachable
+from `mills` alone** — it holds pure business invariants, nothing else.
 
-## Architecture Decisions
+## Target layout
 
-### Entry point: `inits` wraps `gates`
+| Layer | Modules |
+|-------|---------|
+| pacts | `config.py`, `root.py`, `file.py`, `mark.py`, `stack.py`, `transaction.py`, `filesystem.py`, `services.py` |
+| specs | `mark.py`, `stack.py` (invariants only, as they appear) |
+| mills | `root.py`, `file.py`, `mark.py`, `stack.py` |
+| links | `db/sqlalchemy/{__init__,models,engine,repositories}.py`, `fs/pathlib.py` |
+| gates | `tui/textual/{app,roots,files,marks,stacks}.py` |
+| inits | `config.py`, `wiring.py`, `repositories.py`, `services.py` |
+| tests | `tests/unit/{pacts,mills}/`, `tests/integration/{inits,links,tui}/` |
 
-```
-pyproject.toml: acre = "acervus.inits:cli"
+### Slicing
 
-inits/__init__.py:
-  - imports cli group from gates.cli.commands
-  - adds Click callback that loads config (specs) and creates DI (links UoW)
-  - injects DI container via ctx.obj
+`pacts`, `mills` and `specs` slice **by noun** — root, file, mark, stack — and
+`pacts` and `mills` must mirror each other. Each pacts noun module holds every
+boundary contract for that noun together: its DTO, its write TypedDict, its
+repository protocol, its errors. Not `pacts/dtos.py` or `pacts/protocols.py` —
+that slices by technical kind, which is the thing to avoid. Verb cuts
+(`pacts/file/scan.py`) come only when a noun actually gets fat.
 
-gates/cli/commands.py:
-  - defines Click commands
-  - accesses ctx.obj for DI (no imports from links/specs/inits)
-  - can import mills (allowed) and pacts (allowed) for type hints
-```
+`links` slices `{port}/{adapter}/{kind}`, `gates` slices `{port}/{adapter}/{page}`.
+The `links/db/sqlalchemy/__init__.py` facade is the adapter's public surface: it
+re-exports the repository classes and nothing else. Models, the declarative base
+and the engine stay internal, so external code writes
+`from acervus.links.db.sqlalchemy import RootRepository` and never reaches
+`models`.
 
-### Config: model in specs, loading in inits
+`__init__.py` files stay empty by default. The adapter facade above is the one
+sanctioned exception; import every other symbol from the module that defines it.
 
-- `specs/__init__.py`: `AcervusConfig` Pydantic model (pure definition)
-- `inits/__init__.py`: `load_config()` reads TOML via `tomllib`, returns `AcervusConfig`
+### No Unit of Work
 
-### Filesystem I/O: protocol in pacts, implementation in links
+Services take the **specific repository protocols they use plus a
+`TransactionProtocol`**, by constructor — `ScanService(files, roots, filesystem,
+transaction)`, never `ScanService(uow)`. That is interface segregation at the
+service boundary: a service declares the two or three ports it touches and
+nothing more. Multi-repository writes go through `transaction.atomic()` inside
+the service; a gate never opens a transaction. Every repository declares its
+protocol as a base class so the type checker verifies conformance.
 
-- `pacts/__init__.py`: `FilesystemReaderProtocol`, `FileInfo` dataclass
-- `links/filesystem.py`: `FilesystemReader` implements the protocol
-- `mills/__init__.py`: `ScanService` receives reader via constructor (no I/O)
+Repositories are exposed as flat `@cached_property` leaves on
+`inits/repositories.py`, services likewise on `inits/services.py`. Four nouns is
+far below the ~12-symbol threshold where bucketing starts to pay, so both stay
+flat.
 
-### File paths: use existing packages
+### Test type follows the layer
 
-All layers are already packages (`__init__.py` dirs). New files go inside them:
-- `pacts/__init__.py`, `specs/__init__.py`, `mills/__init__.py`, `inits/__init__.py`
-- `links/db/models.py`, `links/db/engine.py`, `links/db/repositories.py`, `links/db/uow.py`
-- `links/filesystem.py`
-- `gates/cli/commands.py` (exists)
+`mills` is pure logic — unit tests, no IO, mock at the highest level and assert
+every mock call. `links`, `gates` and the IO-bearing parts of `inits` get
+integration tests against real infrastructure: repositories against a real SQLite
+file, the TUI through Textual's `app.run_test()` pilot. Repositories are tested
+directly, not only through a screen. Never raise coverage on an IO-bearing layer
+with a mock-everything unit test.
+
+## Done
+
+- **Config model** — `pacts/config.py`, `AcervusConfig(db_path, roots)`.
+- **Config loading** — `inits/config.py`, `load_config()` over `tomllib`,
+  default `~/.config/acervus/config.toml`, returns `None` when absent.
+- **Entry point** — `inits/wiring.py`, `main()` loads config and launches the
+  app, or exits 1 with a pointer to `config.example.toml`.
+- **SQLAlchemy models and engine** — `links/db/sqlalchemy/{models,engine}.py`,
+  `Root`, `File`, `Mark`, `FileMark`, `Stack`, plus `create_engine_from_path()`
+  and `init_db()`.
+- **TUI shell** — `gates/tui/textual/app.py`, lists the configured roots.
 
 ## Steps
 
-Each step follows TDD: write tests (red) -> implement (green) -> verify with `mise run check` + `mise run test`.
+Each step is TDD: write the test (red), implement (green), then
+`mise run lint:ruff`, `lint:mypy`, `lint:import-linter`, `lint:pylint src` and
+`mise run test:py` before committing.
 
 ---
 
-### Step 0: Entry point adjustment
+### Step 1: pacts — the root and file nouns
 
-**Change:** `pyproject.toml` entry point from `acervus.gates.cli.commands:cli` to `acervus.inits:cli`
+**Tests first:** `tests/unit/pacts/test_root.py`, `tests/unit/pacts/test_file.py`
+— DTO validation and `from_attributes` round-tripping.
 
 **Files:**
-- `pyproject.toml` — change `[project.scripts]`
-- `src/acervus/inits/__init__.py` — import and re-export `cli` from gates (no callback yet)
 
-**Verify:** `poetry run acre --help` works, `mise run check` passes
+- `pacts/root.py` — `RootDTO`, `RootWrite` TypedDict, `RootRepositoryProtocol`,
+  `RootNotFoundError`
+- `pacts/file.py` — `FileDTO`, `FileWrite`, `FileInfo` (frozen dataclass:
+  relative_path, size, mtime), `ScanResult` (added, removed, updated),
+  `FileRepositoryProtocol`, `FileNotFoundError`
+- `pacts/transaction.py` — `TransactionProtocol` with `atomic()`
+- `pacts/filesystem.py` — `FilesystemReaderProtocol`
 
----
-
-### Step 1: pacts — DTOs, protocols, exceptions
-
-**Tests first:** `tests/unit/pacts/test_dtos.py` — DTO validation, `from_attributes=True`
-
-**Files:** `src/acervus/pacts/__init__.py`
-
-- DTOs: `RootDTO`, `FileDTO`, `MarkDTO`, `StackDTO` (Pydantic `BaseModel`, `ConfigDict(from_attributes=True)`)
-- Dataclasses: `FileInfo` (relative_path, size, mtime), `ScanResult` (added, removed, updated)
-- Protocols: `FilesystemReaderProtocol`, `RootRepositoryProtocol`, `FileRepositoryProtocol`, `MarkRepositoryProtocol`, `StackRepositoryProtocol`, `UnitOfWorkProtocol`, `DependencyInjectorProtocol`
-- Exceptions: `NotFoundError`
-
-**Verify:** `mise run check` passes, `mise run test` passes
+Every DTO carries `model_config = ConfigDict(from_attributes=True)` and mirrors
+the corresponding model's field set.
 
 ---
 
-### Step 2: specs — Configuration model [x]
+### Step 2: links — root and file repositories
 
-**Tests first:** `tests/unit/specs/test_config.py` — config validation
-
-**Files:** `src/acervus/specs/__init__.py`
-
-- `AcervusConfig(BaseModel)`: `db_path: Path`, `roots: dict[str, Path]`
-
-**Verify:** `mise run check` passes, `mise run test` passes
-
----
-
-### Step 3: inits — Config loading + DI bootstrap [x]
-
-**Tests first:** `tests/unit/inits/test_config_loading.py` — load from temp TOML file
-
-**Files:** `src/acervus/inits/__init__.py`
-
-- `load_config(path: Path | None = None) -> AcervusConfig` — uses `tomllib`, default `~/.config/acervus/config.toml`
-- `DependencyInjector` — stub, takes config
-- Click callback on the `cli` group: loads config, creates DI, stores on `ctx.obj`
-
-**Verify:** `poetry run acre --help` works, `mise run check` passes, `mise run test` passes
-
----
-
-### Step 4: `acre status` command
-
-**Tests first:** `tests/integration/cli/test_status.py` — with temp config, assert output
-
-**Files:** `src/acervus/gates/cli/commands.py`
-
-- `status` subcommand: reads config from `ctx.obj`, prints roots + db path
-- gates imports only `click` and `pacts` (for protocol types if needed)
-
-**Verify:** `poetry run acre status` prints config, `mise run check` passes, `mise run test` passes
-
----
-
-### Step 5: links — SQLAlchemy models + engine [x]
+**Tests first:** `tests/integration/links/test_repositories.py` — against a real
+SQLite file, not a mock.
 
 **Files:**
-- `src/acervus/links/db/__init__.py` (new dir)
-- `src/acervus/links/db/models.py` — `Root`, `File`, `Mark`, `FileMark`, `Stack`
-- `src/acervus/links/db/engine.py` — `create_engine_from_path(db_path: Path) -> Engine`, `init_db(engine)`
 
-**Verify:** `mise run check` passes
+- `links/db/sqlalchemy/repositories.py` — `RootRepository` (`sync_roots`,
+  `list_all`, `read`, `read_by_alias`) and `FileRepository` (`list_by_root`,
+  `upsert_many`, `delete_many`), each declaring its protocol as a base class and
+  returning DTOs, never ORM models
+- `links/db/sqlalchemy/__init__.py` — re-export both repository classes
 
 ---
 
-### Step 6: links — UoW + RootRepository
-
-**Tests first:** `tests/unit/links/test_uow.py` — session lifecycle with in-memory SQLite
+### Step 3: inits — repositories, services, and a session
 
 **Files:**
-- `src/acervus/links/db/uow.py` — implements `UnitOfWorkProtocol`
-- `src/acervus/links/db/repositories.py` — `RootRepository` with `sync_roots()`, `list_all()`, `read()`, `read_by_alias()`
 
-**Verify:** `mise run check` passes, `mise run test` passes
+- `inits/repositories.py` — engine creation, `init_db`, a session, and a
+  `@cached_property` per repository
+- `inits/services.py` — a `@cached_property` per service, flat
+- `pacts/services.py` — the protocol the container satisfies, so `gates` can be
+  typed against it without importing `inits`
 
----
-
-### Step 7: Wire DI with real UoW + update status
-
-**Files:** `src/acervus/inits/__init__.py`
-
-- `DependencyInjector`: creates engine, calls `init_db`, exposes `uow` property
-- Update `acre status` output: show "Database: path (exists/new)", root count, file count
-
-**Integration test:** `tests/integration/cli/test_status.py` — verify DB creation and status output
-
-**Verify:** `poetry run acre status` works end-to-end, `mise run check` passes, `mise run test` passes
+**Test:** `tests/integration/inits/test_wiring.py` — the container builds, the
+database file is created, repositories are reachable.
 
 ---
 
-### Step 8: links — FilesystemReader
+### Step 4: TUI — roots screen off a service
 
-**Tests first:** `tests/unit/links/test_filesystem.py` — temp dir with files
-
-**Files:** `src/acervus/links/filesystem.py` — implements `FilesystemReaderProtocol`
-
-**Verify:** `mise run check` passes, `mise run test` passes
-
----
-
-### Step 9: mills — ScanService (basic insert)
-
-**Tests first:** `tests/unit/mills/test_scan.py` — mock UoW + FS reader
+**Tests first:** extend `tests/integration/tui/test_app.py`.
 
 **Files:**
-- `src/acervus/mills/__init__.py` — `ScanService(uow, fs)` with `scan(alias, root_path) -> ScanResult`
-- `src/acervus/links/db/repositories.py` — add `FileRepository` basics
 
-**Verify:** `mise run check` passes, `mise run test` passes
+- `gates/tui/textual/app.py` — takes the services container instead of
+  `db_path` / `roots`
+- `gates/tui/textual/roots.py` — the roots screen, rendering `RootDTO`s
+- `inits/wiring.py` — builds the container and hands it to the app
 
----
-
-### Step 10: `acre scan` command
-
-**Tests first:** `tests/integration/cli/test_scan.py` — temp dir, scan, verify output
-
-**Files:**
-- `src/acervus/gates/cli/commands.py` — `scan [ALIAS]` command, uses `ctx.obj` DI
-- `src/acervus/inits/__init__.py` — wire `FilesystemReader` + `ScanService` into DI
-
-**Verify:** `poetry run acre scan` works, `mise run check` passes, `mise run test` passes
+This is the step that closes the current shortcut of passing raw config values
+into the TUI.
 
 ---
 
-### Step 11: mills — ScanService full diff
+### Step 5: links — the filesystem adapter
 
-**Tests first:** `tests/unit/mills/test_scan.py` — added/removed/updated scenarios
+**Tests first:** `tests/integration/links/test_filesystem.py` — a real temp
+directory.
 
-**Files:** `src/acervus/mills/__init__.py` — extend scan to detect removals and modifications
-
-**Verify:** `mise run check` passes, `mise run test` passes
-
----
-
-### Step 12: `acre files` command
-
-**Tests first:** `tests/integration/cli/test_files.py`
-
-**Files:**
-- `src/acervus/links/db/repositories.py` — `FileRepository.list_all()`, `list_by_root()`
-- `src/acervus/gates/cli/commands.py` — `files [--root ALIAS]`, output: `alias:relative/path`
-
-**Verify:** Works end-to-end, `mise run check` passes, `mise run test` passes
+**Files:** `links/fs/pathlib.py` — `PathlibFilesystemReader` implementing
+`FilesystemReaderProtocol`, yielding `FileInfo`.
 
 ---
 
-### Step 13: mills — MarkService + MarkRepository
+### Step 6: mills — ScanService, insert only
 
-**Tests first:** `tests/unit/mills/test_mark.py` — mock UoW
+**Tests first:** `tests/unit/mills/test_file.py` — mock the repository protocols
+and the reader; assert every call.
 
-**Files:**
-- `src/acervus/mills/__init__.py` — `MarkService(uow)` with `add()`, `remove()`
-- `src/acervus/links/db/repositories.py` — `MarkRepository`
-
-**Verify:** `mise run check` passes, `mise run test` passes
+**Files:** `mills/file.py` — `ScanService(files, roots, filesystem, transaction)`
+with `scan(alias) -> ScanResult`.
 
 ---
 
-### Step 14: `acre mark` commands
+### Step 7: TUI — scan action
 
-**Tests first:** `tests/integration/cli/test_mark.py`
-
-**Files:** `src/acervus/gates/cli/commands.py`
-
-- `acre mark add <file> <mark> [<mark>...]`
-- `acre mark remove <file> <mark> [<mark>...]`
-- `acre mark list` — all marks with file counts
-- `acre marks <file>` — marks for a specific file
-
-**Verify:** Full mark workflow, `mise run check` passes, `mise run test` passes
+**Files:** `gates/tui/textual/roots.py` — a binding that scans the selected root
+and reports the `ScanResult`; `inits/services.py` gains the `scan` leaf.
 
 ---
 
-### Step 15: `acre files` — mark filtering
+### Step 8: mills — ScanService full diff
 
-**Tests first:** extend `tests/integration/cli/test_files.py`
+**Tests first:** extend `tests/unit/mills/test_file.py` with added, removed and
+updated cases.
 
-**Files:** `src/acervus/gates/cli/commands.py` — add `--mark MARK`, `--unmarked` flags
-
-**Verify:** `mise run check` passes, `mise run test` passes
-
----
-
-### Step 16: mills — StackService + StackRepository
-
-**Tests first:** `tests/unit/mills/test_stack.py`
-
-**Files:**
-- `src/acervus/mills/__init__.py` — `StackService(uow)`
-- `src/acervus/links/db/repositories.py` — `StackRepository`
-
-**Verify:** `mise run check` passes, `mise run test` passes
+**Files:** `mills/file.py` — detect removals and mtime/size changes.
 
 ---
 
-### Step 17: `acre stack` commands
+### Step 9: TUI — files screen
 
-**Tests first:** `tests/integration/cli/test_stack.py`
-
-**Files:** `src/acervus/gates/cli/commands.py`
-
-- `acre stack create <name>`
-- `acre stack list`
-- `acre stack add <stack> <file> [<file>...]`
-- `acre stack remove <file> [<file>...]`
-- `acre stack show <name>`
-
-**Verify:** Full stack workflow, `mise run check` passes, `mise run test` passes
+**Files:** `pacts/file.py` (list filters), `links/.../repositories.py`
+(`FileRepository.list_all`), `gates/tui/textual/files.py` — files as
+`alias:relative/path`, filterable by root.
 
 ---
 
-### Step 18: `acre files --stack` filtering
+### Step 10: marks — pacts, links, mills
 
-**Tests first:** extend `tests/integration/cli/test_files.py`
+**Tests first:** `tests/unit/pacts/test_mark.py`, `tests/unit/mills/test_mark.py`,
+`tests/integration/links/test_repositories.py` extension.
 
-**Files:** `src/acervus/gates/cli/commands.py` — add `--stack STACK` flag
-
-**Verify:** All tests pass, all checks pass. MVP complete.
+**Files:** `pacts/mark.py`, `links/.../repositories.py` (`MarkRepository`),
+`mills/mark.py` (`MarkService.add` / `.remove`), `specs/mark.py` if a name
+invariant emerges (charset, length).
 
 ---
 
-## Key Files
+### Step 11: TUI — marks
 
-| Layer | Files |
-|-------|-------|
-| pacts | `src/acervus/pacts/__init__.py` |
-| specs | `src/acervus/specs/__init__.py` |
-| mills | `src/acervus/mills/__init__.py` |
-| links | `src/acervus/links/db/{__init__,models,engine,repositories,uow}.py`, `src/acervus/links/filesystem.py` |
-| gates | `src/acervus/gates/cli/{__init__,commands}.py` |
-| inits | `src/acervus/inits/__init__.py` |
-| tests | `tests/unit/{pacts,specs,inits,mills,links}/`, `tests/integration/cli/` |
+**Files:** `gates/tui/textual/marks.py` — add and remove marks on the selected
+file, list all marks with counts; `inits/services.py` gains the `mark` leaf.
+
+---
+
+### Step 12: TUI — filter files by mark
+
+**Files:** `links/.../repositories.py` (mark filter), `gates/tui/textual/files.py`
+— filter by mark, and an unmarked-only view.
+
+---
+
+### Step 13: stacks — pacts, links, mills
+
+**Tests first:** `tests/unit/pacts/test_stack.py`,
+`tests/unit/mills/test_stack.py`, repository integration extension.
+
+**Files:** `pacts/stack.py`, `links/.../repositories.py` (`StackRepository`),
+`mills/stack.py` (`StackService`) — enforcing at-most-one-stack-per-file.
+
+---
+
+### Step 14: TUI — stacks
+
+**Files:** `gates/tui/textual/stacks.py` — create, list, add files, remove files,
+show a stack's contents; `inits/services.py` gains the `stack` leaf.
+
+---
+
+### Step 15: TUI — filter files by stack
+
+**Files:** `gates/tui/textual/files.py` — filter by stack. MVP complete.
