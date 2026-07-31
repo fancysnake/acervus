@@ -2,15 +2,11 @@
 name = "acervus"
 version = "0.1.0"
 description = "Filesystem tagging tool"
-authors = [
-    {name = "Radosław Ganczarek",email = "radoslaw@ganczarek.in"}
-]
-license = {text = "BSD-3-Clause license"}
+authors = [{ name = "Radosław Ganczarek", email = "radoslaw@ganczarek.in" }]
+license = { text = "BSD-3-Clause license" }
 readme = "README.md"
-requires-python = ">=3.14"
-dependencies = [
-    "click (>=8.3.1,<9.0.0)"
-]
+requires-python = ">=3.14,<3.15"
+dependencies = ["click (>=8.3.1,<9.0.0)"]
 
 
 [build-system]
@@ -28,7 +24,10 @@ dev = [
     "import-linter (>=2.11,<3.0)",
     "pylint (>=4.0.5,<5.0.0)",
     "pytest (>=9.0.2,<10.0.0)",
-    "diff-cover (>=10.2.0,<11.0.0)"
+    "diff-cover (>=10.2.0,<11.0.0)",
+    "vulture (>=2.16,<3.0)",
+    "pytest-xdist (>=3.8.0,<4.0.0)",
+    "tingle (>=0.4.0,<0.5.0)",
 ]
 
 [tool.black]
@@ -42,8 +41,7 @@ target-version = ['py314']
 [tool.coverage.run]
 branch = true
 source = ["src", "tests"]
-omit = [
-]
+omit = []
 
 [tool.coverage.report]
 show_missing = true
@@ -57,8 +55,7 @@ precision = 2
 known_first_party = ["acervus"]
 
 [tool.deptry.per_rule_ignores]
-DEP002 = [
-]
+DEP002 = []
 DEP004 = []
 
 # MYPY
@@ -76,9 +73,17 @@ disallow_subclassing_any = true
 disallow_untyped_calls = true
 disallow_untyped_decorators = true
 disallow_untyped_defs = true
-exclude = []
-python_version = "3.14"
-plugins = []
+exclude = ["migrations/.*.py", "tests/.*.py"]
+explicit_package_bases = true
+extra_checks = true
+implicit_reexport = true
+mypy_path = "src"
+plugins = ["pydantic.mypy"]
+pretty = true
+python_version = "3.11"
+strict = true
+strict_equality = true
+strict_equality_for_none = true
 warn_incomplete_stub = true
 warn_no_return = true
 warn_redundant_casts = true
@@ -87,10 +92,13 @@ warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
 
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+
 # RUFF
 
 [tool.ruff]
-fix = false
 line-length = 88
 output-format = 'concise'
 preview = true
@@ -98,14 +106,14 @@ preview = true
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    "CPY",  # Missing copyright notice at top of file
-    "D1", #Missing docstring
+    "CPY", # Missing copyright notice at top of file
+    "D1",  #Missing docstring
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**.py" = [
-    "ANN",     # flake8-annotations
-    "S",       # bandit
+    "ANN", # flake8-annotations
+    "S",   # bandit
 ]
 
 [tool.ruff.lint.flake8-pytest-style]
@@ -135,10 +143,10 @@ source_modules = ["acervus.gates"]
 forbidden_modules = [
     "acervus.links",
     "acervus.inits",
+    "acervus.mills",
     "acervus.specs",
     "acervus.edges",
 ]
-
 
 [[tool.importlinter.contracts]]
 name = "links"
@@ -147,29 +155,23 @@ source_modules = ["acervus.links"]
 forbidden_modules = [
     "acervus.gates",
     "acervus.inits",
+    "acervus.mills",
     "acervus.specs",
     "acervus.edges",
 ]
-
 
 [[tool.importlinter.contracts]]
 name = "inits"
 type = "forbidden"
 source_modules = ["acervus.inits"]
-forbidden_modules = ["acervus.edges"]
+forbidden_modules = ["acervus.specs", "acervus.edges"]
 
 
 [[tool.importlinter.contracts]]
 name = "mills"
 type = "forbidden"
 source_modules = ["acervus.mills"]
-forbidden_modules = [
-    "acervus.gates",
-    "acervus.links",
-    "acervus.inits",
-    "acervus.specs",
-    "acervus.edges",
-]
+forbidden_modules = ["acervus.gates", "acervus.links", "acervus.inits", "acervus.edges"]
 
 
 [[tool.importlinter.contracts]]
@@ -211,3 +213,33 @@ forbidden_modules = [
     "acervus.pacts",
     "acervus.specs",
 ]
+
+[[tool.importlinter.contracts]]
+name = "inside-gates"
+type = "independence"
+modules = ["acervus.gates.*"]
+
+[[tool.importlinter.contracts]]
+name = "inside-links"
+type = "independence"
+modules = ["acervus.links.*"]
+
+[[tool.importlinter.contracts]]
+name = "inside-mills"
+type = "independence"
+modules = ["acervus.mills.*"]
+
+[[tool.importlinter.contracts]]
+name = "inside-pacts"
+type = "independence"
+modules = ["acervus.pacts.*"]
+
+[[tool.importlinter.contracts]]
+name = "inside-specs"
+type = "independence"
+modules = ["acervus.specs.*"]
+
+[[tool.importlinter.contracts]]
+name = "inside-edges"
+type = "independence"
+modules = ["acervus.edges.*"]
