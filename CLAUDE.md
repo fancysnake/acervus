@@ -60,12 +60,14 @@ Seven layers, with import direction enforced by import-linter contracts in `pypr
 | **pacts** | nothing                     | protocols, Pydantic DTOs, frozen dataclasses, exceptions — including `AcervusConfig` |
 | **specs** | pacts                       | pure business invariants (empty until one exists) |
 | **mills** | pacts, specs                | pure business logic; dependencies via constructor |
-| **links** | pacts, mills                | data access — SQLAlchemy models, engine, repositories |
-| **gates** | pacts, mills                | entry points — the Textual TUI                    |
+| **links** | pacts                       | data access — SQLAlchemy models, engine, repositories |
+| **gates** | pacts                       | entry points — the Textual TUI                    |
 | **inits** | pacts, mills, links, gates  | config loading, DI, the `main()` entry point      |
 | **edges** | nothing                     | infrastructure boundary (currently empty)         |
 
-Two consequences carry the weight. **Only `inits` may wire `links` and `gates` together** — gates and mills cannot import `links` at all, so a TUI screen can never touch a SQLAlchemy model; it receives DTOs and services handed down from `inits`. And **`specs` is reachable from `mills` alone** — it holds pure business invariants, not configuration. `AcervusConfig` lives in `pacts` because it is a data contract crossing inits → gates. `edges` is outside the import graph; nothing may import it.
+Three consequences carry the weight. **Only `inits` may wire `links` and `gates` together** — gates and mills cannot import `links` at all, so a TUI screen can never touch a SQLAlchemy model; it receives DTOs and services handed down from `inits`. **Neither `gates` nor `links` may import `mills`** — both are typed against protocols in `pacts` and receive concrete implementations by injection, so nothing at the edge names a concrete service. And **`specs` is reachable from `mills` alone** — it holds pure business invariants, not configuration. `AcervusConfig` lives in `pacts` because it is a data contract crossing inits → gates. `edges` is outside the import graph; nothing may import it.
+
+Seven `inside-*` independence contracts sit on top of the seven layer contracts. The ones with teeth are `inside-pacts` and `inside-mills`: **sibling modules inside `pacts` and inside `mills` may not import each other**, so every noun module stands alone. A pacts module may be named after a port rather than a noun when its contract belongs to the port (`pacts/config.py`, `pacts/transaction.py`, `pacts/filesystem.py`).
 
 ### Slicing
 
