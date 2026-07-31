@@ -131,7 +131,7 @@ Each step follows TDD: write tests (red) -> implement (green) -> verify with `mi
 
 ---
 
-### Step 5: links — SQLAlchemy models + engine
+### Step 5: links — SQLAlchemy models + engine [x]
 
 **Files:**
 - `src/acervus/links/db/__init__.py` (new dir)

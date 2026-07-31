@@ -1,303 +1,90 @@
-# Acervus
+# CLAUDE.md
 
-Filesystem tagging tool. Python 3.14, Poetry, mise.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+Acervus is a filesystem tagging tool (in the spirit of TMSU): it indexes files under named **roots** and organizes them with **marks** (labels, many-to-many) and **stacks** (a file belongs to at most one). Files stay where they are; the index lives in a local SQLite database.
+
+Naming: **acervus** = project, **acre** = the installed command, **mark** = label, **stack** = file group.
+
+Python 3.14, Poetry for dependencies, mise for tooling and tasks.
+
+## State of the repo (read before trusting the docs)
+
+The project is an early MVP and **`README.md` and `FEATURE_PLAN.md` are stale**. Both describe a Click CLI with an `acre status` command and entry point `acervus.inits:cli`. That code has been deleted. The actual entry point is `acervus.inits:main` (`pyproject.toml`), which loads config and launches a **Textual TUI** (`acervus.gates.tui.textual.app.AcervusApp`). Click is not a dependency; `textual` is.
+
+Consequently `links/` has models and an engine but no repositories, `mills/` is empty, and the `UnitOfWorkProtocol` / `*RepositoryProtocol` in `pacts/protocols.py` have no implementations yet. `DependencyInjector` currently holds only a config, and the TUI receives `db_path`/`roots` directly rather than through a unit of work.
 
 ## Commands
 
+Never run `python`, `pytest`, or `mypy` directly — mise owns the virtualenv.
+
 ```bash
-mise run start      # dev server :8000
-mise run test       # all tests
-mise run check      # format + lint
-mise run dj <cmd>   # django-admin
+mise run test:unit       # unit tests
+mise run test:int        # integration tests
+mise run test:py         # both
+mise run lint:ruff       # ruff, --no-fix
+mise run lint:mypy       # mypy src (strict)
+mise run lint:import-linter   # GLIMPSE layer contracts
+mise run lint:pylint src
+mise run lint:codespell
+mise run format:black    # black src tests
+mise run format:ruff     # ruff --fix
+mise run p <cmd>         # run poetry <cmd>
 ```
 
-## Architecture
+Run a single test through poetry:
 
-GLIMPSE system:
-
-- `gates` (views, forms, templatetags, clis)
-- `links` (models, repos, external clients)
-- `inits` (DI)
-- `mills` (logic)
-- `pacts` (protocols, DTOs, aggregates)
-- `specs` (configuration options)
-- `edges` (infrastructure boundary)
-
-Access data: `request.di.uow.{repository}.read(id)` — returns Pydantic DTOs,
-never Django models.
-
-### Import rules
-
-Enforced by `importlinter` in `pyproject.toml`.
-
-| Layer | CAN import | CANNOT import |
-|-------|-----------|---------------|
-| pacts | nothing | gates, links, inits, mills, specs, edges |
-| specs | pacts | gates, links, inits, mills, edges |
-| mills | pacts | gates, links, inits, specs, edges |
-| links | pacts, mills | gates, inits, specs, edges |
-| gates | pacts, mills | links, inits, specs, edges |
-| inits | pacts, specs, mills, links, gates | edges |
-| edges | nothing | gates, links, inits, mills, pacts, specs |
-
-Only `inits` can wire specs, links, and gates together. Edges are outside
-of the import system — not imported by any layer.
-
-### Data flow
-
-1. Request arrives, middleware in `inits` injects `request.di = DependencyInjector()`
-2. View accesses `request.di.uow.{repo}.read(id)` — gets Pydantic DTO
-3. Repository: check identity-map cache -> query ORM if miss -> cache -> return DTO
-4. View passes DTOs to template
-
-### pacts
-
-Bottom layer. No imports from other project modules or Django.
-
-- **DTOs**: Pydantic `BaseModel` with `ConfigDict(from_attributes=True)`.
-  Fields mirror ORM model fields.
-- **TypedDicts** (`total=False`): used for write/update operations.
-- **Protocols**: interfaces for repositories, `UnitOfWorkProtocol`,
-  `DependencyInjectorProtocol`.
-- **Request types**: `RequestContext` / `AuthenticatedRequestContext` dataclasses,
-  `RootRequestProtocol` with `.di` and `.context`.
-- **Exceptions**: `NotFoundError` raised by repositories.
-
-### mills
-
-Pure business logic. Takes UoW/dependencies via constructor. No Django imports.
-
-```python
-class PanelService:
-    def __init__(self, uow: UnitOfWorkProtocol) -> None:
-        self._uow = uow
-
-    def delete_category(self, category_pk: int) -> bool:
-        if self._uow.categories.has_proposals(category_pk):
-            return False
-        self._uow.categories.delete(category_pk)
-        return True
+```bash
+mise run p run pytest tests/unit/specs/test_config.py -k test_empty_roots
 ```
 
-### links
+### Broken aggregate tasks
 
-Data access. Implements repository pattern with identity map.
+`python_tasks.toml` was copied from a Django project and several tasks reference tooling this repo does not have. **Do not reach for them; run the individual `lint:*` / `format:*` / `test:*` tasks above instead.**
 
-**Storage** — request-scoped cache, simple `@dataclass` with dicts:
+- `check`, `devcheck`, `fullcheck` — depend on a task named `lint`, but the file defines `_lint`; mise errors out.
+- `format`, `_lint` — invoke `djlint` and `vulture`, neither of which is installed.
+- `shitcheck` — calls `scripts/shitcheck.sh`; there is no `scripts/` directory.
+- `test:*:cov:diff` — reference `acervus.adapters.web`, a package that does not exist.
 
-```python
-@dataclass
-class Storage:
-    events: dict[int, Event] = field(default_factory=dict)
-    users: dict[UserType, dict[str, User]] = field(
-        default_factory=lambda: defaultdict(dict)
-    )
-```
+`lint:ruff` currently fails on pre-existing `COM812` (missing trailing comma) findings. Black runs with `skip-magic-trailing-comma`, so `format:black` strips commas that ruff then demands; running `format:ruff` after black settles it.
 
-**Repositories** — implement protocols from pacts, take Storage in `__init__`:
+## Architecture: GLIMPSE layers
 
-```python
-class EventRepository(EventRepositoryProtocol):
-    def __init__(self, storage: Storage) -> None:
-        self._storage = storage
+Seven layers, with import direction enforced by import-linter contracts in `pyproject.toml` (`mise run lint:import-linter`). A change that violates the table fails the build.
 
-    def read(self, pk: int) -> EventDTO:
-        if not (event := self._storage.events.get(pk)):
-            try:
-                event = Event.objects.get(id=pk)
-            except Event.DoesNotExist as exception:
-                raise NotFoundError from exception
-            self._storage.events[pk] = event
-        return EventDTO.model_validate(event)
-```
+| Layer     | CAN import                        | Holds                                             |
+|-----------|-----------------------------------|---------------------------------------------------|
+| **pacts** | nothing                           | protocols, Pydantic DTOs, frozen dataclasses, exceptions |
+| **specs** | pacts                             | configuration models (`AcervusConfig`)            |
+| **mills** | pacts                             | pure business logic; dependencies via constructor |
+| **links** | pacts, mills                      | data access — SQLAlchemy models, engine, repositories |
+| **gates** | pacts, mills                      | entry points — the Textual TUI                    |
+| **inits** | pacts, specs, mills, links, gates | config loading, DI, the `main()` entry point      |
+| **edges** | nothing                           | infrastructure boundary (currently empty)         |
 
-**Unit of Work** — owns Storage, exposes repositories as `@cached_property`:
+The load-bearing consequence: **only `inits` may wire `specs`, `links`, and `gates` together.** Gates and mills cannot import `links` or `specs` at all, so a TUI screen can never touch a SQLAlchemy model or read config directly — it receives DTOs and plain values handed down from `inits`. `edges` is outside the import graph; nothing imports it.
 
-```python
-class UnitOfWork(UnitOfWorkProtocol):
-    def __init__(self) -> None:
-        self._storage = Storage()
+Repositories, when written, implement a protocol declared in `pacts` and return Pydantic DTOs (`ConfigDict(from_attributes=True)`), never ORM models. The DTO field sets in `pacts/dtos.py` mirror the models in `links/db/models.py`.
 
-    @staticmethod
-    def atomic() -> AbstractContextManager[None]:
-        return transaction.atomic()
+## Type checking
 
-    @cached_property
-    def events(self) -> EventRepository:
-        return EventRepository(self._storage)
-```
+MyPy runs strict *plus* `disallow_any_expr` and `disallow_any_decorated`. Those two are relaxed per-module in `pyproject.toml` for `acervus.gates.tui.textual.*`, `acervus.inits.wiring`, and `acervus.links.db.*` — the packages where third-party code leaks `Any`. When you add a module that wraps Textual or SQLAlchemy, expect to either keep `Any` out of the signatures or extend that override list.
 
-### gates
-
-Entry points. Receives DTOs from UoW, passes DTOs to templates.
-
-```python
-class EventIndexPageView(LoginRequiredMixin, TemplateView):
-    template_name = "panel/event/index.html"
-
-    def get(self, request: RootRequestProtocol, slug: str) -> TemplateResponse:
-        event = request.di.uow.events.read_by_slug(slug, request.context.current_sphere_id)
-        return TemplateResponse(request, self.template_name, {"event": event})
-```
-
-### inits
-
-Wires dependencies. Middleware sets `request.di`:
-
-```python
-class DependencyInjector(DependencyInjectorProtocol):
-    @cached_property
-    def uow(self) -> UnitOfWork:
-        return UnitOfWork()
-
-class RepositoryInjectionMiddleware:
-    def __call__(self, request: RootRequestProtocol) -> Response:
-        request.di = DependencyInjector()
-        return self.get_response(request)
-```
-
-### edges
-
-Django infrastructure only: `settings.py`, `wsgi.py`, `asgi.py`.
-
-## Source layout
-
-```
-src/{project}/
-  pacts.py
-  specs.py
-  mills.py
-  inits.py
-  links/
-    db/django/
-      models.py
-      admin.py
-      migrations/
-      storage.py
-      repositories.py
-      uow.py
-    {service}.py          # external API clients
-  gates/
-    web/django/
-      urls.py
-      forms.py
-      decorators.py
-      context_processors.py
-      templatetags/
-      {namespace}.py      # view modules
-    cli/django/
-      management/commands/
-  edges/
-    settings.py
-    wsgi.py
-    asgi.py
-  templates/
-  static/
-```
-
-## URL conventions
-
-### Pages (nouns, trailing slash)
-
-- **url:** `/{namespace}/({subnamespace}/)?{page}/{subpage}/`
-- **template:** `/{namespace}/({subnamespace}/)?{page}/{subpage}.html`
-- **view:** `({Subnamespace})?{Page}{Subpage}PageView`
-
-### Actions (verbs, `do` prefix, no trailing slash)
-
-- **url:** `/{namespace}/({subnamespace}/)?({page}/{subpage}/)?do/{action}/{subaction}`
-- **template:** none
-- **view:** `({Subnamespace})?({Page}{Subpage})?{Action}ActionView`
-
-### Components (nouns, `parts` prefix, no trailing slash)
-
-- **url:** `/{namespace}/({subnamespace}/)?({page}/{subpage}/)?parts/{part}`
-- **template:** `/{namespace}/({subnamespace}/)?({page}/{subpage}/)?parts/{part}.html`
-- **view:** `({Subnamespace})?({Page}{Subpage})?{Part}ComponentView`
-
-## Rules
-
-- Views return DTOs to templates, never models
-- Never touch `.env*` files
-- NEVER modify, create, or delete configuration files without explicit
-  per-case approval.
-- NEVER add noqa/type ignore/pylint comments or directives without explicit
-  per-case approval.
-- When making UI changes, use agent-browser to take screenshots of affected
-  pages and include before/after images in the PR description
+Ruff runs `select = ["ALL"]` in preview mode, ignoring only `CPY` and `D1`. Tests additionally waive `ANN` and `S`.
 
 ## Testing
 
-### Structure
+`tests/unit/` mirrors `src/`; `tests/integration/` exercises entry points. `asyncio_mode = "auto"`, so async tests need no marker.
 
-```
-tests/
-  unit/                              # mirrors src/ structure
-  integration/
-    web/{namespace}/test_{url_name}.py
-    cli/test_{command}.py
-  e2e/                               # Playwright
-  conftest.py
-  integration/conftest.py
-  integration/utils.py               # assert_response
-```
+- Group tests in classes; test methods are `@staticmethod`.
+- Unit tests cover mills, pacts, specs, and functions — no database, no entry points.
+- Integration tests cover the TUI via Textual's `app.run_test()` pilot. Repositories are not tested directly; they are covered through integration tests.
+- Spell out magic numbers with an arithmetic comment: `assert len(config.roots) == 1 + 1  # docs + photos`.
 
-### Unit tests (`tests/unit/`)
+## Conventions
 
-- Yes: classes, functions (mills, utilities)
-- No: views, commands, repositories
-- Write tests in classes
-- Mock at the highest level to avoid side effects
-- Check all mock calls
-- No database access
-
-Repositories are exempt from direct testing — implicitly tested through view
-integration tests.
-
-### Integration tests (`tests/integration/`)
-
-- Yes: views, commands
-- No: classes, functions
-- Use pytest-factoryboy fixtures
-- Mock at the lowest level or don't mock if possible
-- Check all mock calls and side effects
-
-Always use `assert_response`, never manual assertions:
-
-```python
-from http import HTTPStatus
-from tests.integration.utils import assert_response
-
-assert_response(
-    response,
-    HTTPStatus.OK,
-    template_name=["namespace/page.html"],
-    context_data={...},     # ALL keys, exact equality
-    messages=[(messages.SUCCESS, "Saved.")],  # optional
-)
-```
-
-- Use `ANY` only for hard-to-compare objects (forms, views), never for `[]`,
-  `{}`, booleans, or simple values
-- Login redirects: exact URL match (`url=f"/crowd/login-required/?next={url}"`)
-- Magic numbers: use `1 + 1` pattern with comment (`== 1 + 1  # Email + Phone`)
-
-### E2E tests (`tests/e2e/`)
-
-- Full features, complete user flows
-
-### TDD workflow
-
-Plan -> Tests (red) -> Implement (green) -> Refactor.
-Wait for approval between phases.
-
-## Tooling
-
-- **Black**: line-length 88, preview mode, Python 3.14 target
-- **Ruff**: `select = ["ALL"]`, preview mode
-- **MyPy**: strict mode, django-stubs plugin
-- **Import Linter**: enforces GLIMPSE layer import rules
-- **Djlint**: Django profile HTML linting
-- **Codespell**: spell checking
-- **Deptry**: dependency management
-- **Coverage**: omit `edges/` and `migrations/`, target 100% common code
+- Never add `noqa`, `type: ignore`, `pylint`, or `pragma` directives without explicit per-case approval.
+- Never modify, create, or delete configuration files without explicit per-case approval.
