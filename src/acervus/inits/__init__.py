@@ -1,6 +1,5 @@
-"""Dependency injection and application wiring."""
+"""Application wiring."""
 
-from acervus.inits.di import DependencyInjector
-from acervus.inits.wiring import cli
+from acervus.inits.wiring import main
 
-__all__ = ["DependencyInjector", "cli"]
+__all__ = ["main"]

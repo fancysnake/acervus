@@ -7,13 +7,13 @@ license = { text = "BSD-3-Clause license" }
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
 dependencies = [
-    "click (>=8.3.1,<9.0.0)",
-    "sqlalchemy (>=2.0.48,<3.0.0)",
-    "pydantic (>=2.12.5,<3.0.0)"
+  "sqlalchemy (>=2.0.48,<3.0.0)",
+  "pydantic (>=2.12.5,<3.0.0)",
+  "textual (>=8.2.8,<9.0.0)",
 ]
 
 [project.scripts]
-acre = "acervus.inits:cli"
+acre = "acervus.inits:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -22,18 +22,20 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 [dependency-groups]
 dev = [
-    "black (>=26.3.1,<27.0.0)",
-    "codespell (>=2.4.2,<3.0.0)",
-    "diff-cover (>=10.2.0,<11.0.0)",
-    "import-linter (>=2.11,<3.0)",
-    "mypy (>=1.19.1,<2.0.0)",
-    "pylint (>=4.0.5,<5.0.0)",
-    "pytest (>=9.0.2,<10.0.0)",
-    "pytest-cov (>=7.0.0,<8.0.0)",
-    "pytest-xdist (>=3.8.0,<4.0.0)",
-    "ruff (>=0.15.7,<0.16.0)",
-    "tingle (>=0.4.0,<0.5.0)",
-    "vulture (>=2.16,<3.0)",
+"black (>=26.3.1,<27.0.0)",
+"codespell (>=2.4.2,<3.0.0)",
+"diff-cover (>=10.2.0,<11.0.0)",
+"import-linter (>=2.11,<3.0)",
+"mypy (>=1.19.1,<2.0.0)",
+"pylint (>=4.0.5,<5.0.0)",
+"pytest (>=9.0.2,<10.0.0)",
+"pytest-asyncio (>=1.4.0,<2.0.0)",
+"pytest-cov (>=7.0.0,<8.0.0)",
+"pytest-xdist (>=3.8.0,<4.0.0)",
+"ruff (>=0.15.7,<0.16.0)",
+"taplo (>=0.9.3,<0.10.0)",
+"tingle (>=0.4.0,<0.5.0)",
+"vulture (>=2.16,<3.0)",
 ]
 
 [tool.black]
@@ -41,6 +43,11 @@ line-length = 88
 preview = true
 skip-magic-trailing-comma = true
 target-version = ['py314']
+
+# PYTEST
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 # COVERAGE
 
@@ -100,9 +107,9 @@ warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 module = [
-    "acervus.gates.cli.*",
-    "acervus.inits.wiring",
-    "acervus.links.db.*",
+  "acervus.gates.tui.textual.*",
+  "acervus.inits.wiring",
+  "acervus.links.db.*",
 ]
 disallow_any_expr = false
 disallow_any_decorated = false
@@ -194,12 +201,12 @@ name = "pacts"
 type = "forbidden"
 source_modules = ["acervus.pacts"]
 forbidden_modules = [
-    "acervus.gates",
-    "acervus.links",
-    "acervus.inits",
-    "acervus.mills",
-    "acervus.specs",
-    "acervus.edges",
+  "acervus.gates",
+  "acervus.links",
+  "acervus.inits",
+  "acervus.mills",
+  "acervus.specs",
+  "acervus.edges",
 ]
 
 
@@ -208,11 +215,11 @@ name = "specs"
 type = "forbidden"
 source_modules = ["acervus.specs"]
 forbidden_modules = [
-    "acervus.gates",
-    "acervus.links",
-    "acervus.inits",
-    "acervus.mills",
-    "acervus.edges",
+  "acervus.gates",
+  "acervus.links",
+  "acervus.inits",
+  "acervus.mills",
+  "acervus.edges",
 ]
 
 
@@ -221,12 +228,12 @@ name = "edges"
 type = "forbidden"
 source_modules = ["acervus.edges"]
 forbidden_modules = [
-    "acervus.gates",
-    "acervus.links",
-    "acervus.inits",
-    "acervus.mills",
-    "acervus.pacts",
-    "acervus.specs",
+  "acervus.gates",
+  "acervus.links",
+  "acervus.inits",
+  "acervus.mills",
+  "acervus.pacts",
+  "acervus.specs",
 ]
 
 [[tool.importlinter.contracts]]
