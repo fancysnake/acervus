@@ -1,18 +1,18 @@
-"""Tests for AcervusConfig in specs."""
+"""Tests for AcervusConfig in pacts."""
 
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
-from acervus.specs import AcervusConfig
+from acervus.pacts.config import AcervusConfig
 
 
 class TestAcervusConfig:
     @staticmethod
     def test_valid_config() -> None:
         config = AcervusConfig(
-            db_path=Path("/tmp/acervus.db"), roots={"docs": Path("/home/user/docs")}
+            db_path=Path("/tmp/acervus.db"), roots={"docs": Path("/home/user/docs")},
         )
 
         assert config.db_path == Path("/tmp/acervus.db")
@@ -49,7 +49,7 @@ class TestAcervusConfig:
     @staticmethod
     def test_from_attributes() -> None:
         config = AcervusConfig.model_validate(
-            {"db_path": Path("/tmp/acervus.db"), "roots": {}}
+            {"db_path": Path("/tmp/acervus.db"), "roots": {}},
         )
 
         assert config.db_path == Path("/tmp/acervus.db")

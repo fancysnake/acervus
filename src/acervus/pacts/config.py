@@ -1,4 +1,4 @@
-"""Configuration models for Acervus."""
+"""Configuration contract for Acervus."""
 
 from pathlib import Path
 

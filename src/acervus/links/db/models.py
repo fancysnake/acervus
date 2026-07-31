@@ -18,7 +18,7 @@ class Root(Base):
     path: Mapped[str] = mapped_column(String(4096))
 
     files: Mapped[list[File]] = relationship(
-        back_populates="root", cascade="all, delete-orphan"
+        back_populates="root", cascade="all, delete-orphan",
     )
 
 
@@ -34,7 +34,7 @@ class File(Base):
 
     root: Mapped[Root] = relationship(back_populates="files")
     marks: Mapped[list[Mark]] = relationship(
-        secondary="file_marks", back_populates="files"
+        secondary="file_marks", back_populates="files",
     )
     stack_id: Mapped[int | None] = mapped_column(ForeignKey("stacks.id"), default=None)
     stack: Mapped[Stack | None] = relationship(back_populates="files")
@@ -47,7 +47,7 @@ class Mark(Base):
     name: Mapped[str] = mapped_column(String(255), unique=True)
 
     files: Mapped[list[File]] = relationship(
-        secondary="file_marks", back_populates="marks"
+        secondary="file_marks", back_populates="marks",
     )
 
 
