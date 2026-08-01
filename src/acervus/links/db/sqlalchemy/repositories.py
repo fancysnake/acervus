@@ -109,6 +109,20 @@ class FileRepository(FileRepositoryProtocol):
     def __init__(self, session: Session) -> None:
         self._session = session
 
+    def list_all(self, root_id: int | None = None) -> list[FileDTO]:
+        """Return indexed files, narrowed to one root when given an id.
+
+        Returns:
+            The matching files, ordered by root and then relative path.
+        """
+        statement = select(File).order_by(File.root_id, File.relative_path)
+        if root_id is not None:
+            statement = statement.where(File.root_id == root_id)
+        return [
+            FileDTO.model_validate(record)
+            for record in self._session.scalars(statement).all()
+        ]
+
     def list_by_root(self, root_id: int) -> list[FileDTO]:
         """Return every indexed file under this root.
 

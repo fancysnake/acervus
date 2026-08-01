@@ -49,6 +49,9 @@ class ScanResult:
 class FileRepositoryProtocol(Protocol):
     """Data access for files."""
 
+    def list_all(self, root_id: int | None = None) -> list[FileDTO]:
+        """Return indexed files, narrowed to one root when given an id."""
+
     def list_by_root(self, root_id: int) -> list[FileDTO]:
         """Return every indexed file under this root."""
 
@@ -57,6 +60,13 @@ class FileRepositoryProtocol(Protocol):
 
     def delete_many(self, file_ids: Iterable[int]) -> None:
         """Delete the files with these ids."""
+
+
+class FileServiceProtocol(Protocol):
+    """Business operations on indexed files."""
+
+    def list_all(self, root_id: int | None = None) -> list[FileDTO]:
+        """Return indexed files, narrowed to one root when given an id."""
 
 
 class ScanServiceProtocol(Protocol):

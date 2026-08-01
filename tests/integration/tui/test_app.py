@@ -37,7 +37,7 @@ def services_fixture(repositories):
 
 @pytest.fixture(name="app")
 def app_fixture(services):
-    return AcervusApp(services.roots, services.scan)
+    return AcervusApp(services.roots, services.scan, services.files)
 
 
 @pytest.fixture(name="root_dir")

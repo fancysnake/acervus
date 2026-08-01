@@ -4,13 +4,33 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from acervus.pacts.file import FileWrite, ScanResult, ScanServiceProtocol
+from acervus.pacts.file import (
+    FileServiceProtocol,
+    FileWrite,
+    ScanResult,
+    ScanServiceProtocol,
+)
 
 if TYPE_CHECKING:
     from acervus.pacts.file import FileDTO, FileRepositoryProtocol
     from acervus.pacts.filesystem import FileInfo, FilesystemReaderProtocol
     from acervus.pacts.root import RootRepositoryProtocol
     from acervus.pacts.transaction import TransactionProtocol
+
+
+class FileService(FileServiceProtocol):
+    """Reads the indexed files."""
+
+    def __init__(self, files: FileRepositoryProtocol) -> None:
+        self._files = files
+
+    def list_all(self, root_id: int | None = None) -> list[FileDTO]:
+        """Return indexed files, narrowed to one root when given an id.
+
+        Returns:
+            The matching files, ordered by root and then relative path.
+        """
+        return self._files.list_all(root_id)
 
 
 class ScanService(ScanServiceProtocol):

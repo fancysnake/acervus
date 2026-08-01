@@ -209,6 +209,47 @@ class TestFileRepository:
         assert files.list_by_root(UNKNOWN_ID) == []
 
     @staticmethod
+    def test_list_all_spans_every_root(roots, files):
+        docs, photos = roots.upsert_many(
+            [{"alias": DOCS, "path": DOCS_PATH}, {"alias": PHOTOS, "path": PHOTOS_PATH}]
+        )
+        files.upsert_many([a_file(docs.id, TODO), a_file(photos.id, INBOX)])
+
+        assert len(files.list_all()) == 1 + 1  # one file under each root
+
+    @staticmethod
+    def test_list_all_narrows_to_one_root(roots, files):
+        docs, photos = roots.upsert_many(
+            [{"alias": DOCS, "path": DOCS_PATH}, {"alias": PHOTOS, "path": PHOTOS_PATH}]
+        )
+        files.upsert_many([a_file(docs.id, TODO), a_file(photos.id, INBOX)])
+
+        listed = files.list_all(photos.id)
+
+        assert [file.relative_path for file in listed] == [INBOX]
+
+    @staticmethod
+    def test_list_all_is_ordered_by_root_then_path(roots, files):
+        docs, photos = roots.upsert_many(
+            [{"alias": DOCS, "path": DOCS_PATH}, {"alias": PHOTOS, "path": PHOTOS_PATH}]
+        )
+        files.upsert_many(
+            [a_file(photos.id, TODO), a_file(docs.id, TODO), a_file(docs.id, INBOX)]
+        )
+
+        listed = files.list_all()
+
+        assert [(file.root_id, file.relative_path) for file in listed] == [
+            (docs.id, INBOX),
+            (docs.id, TODO),
+            (photos.id, TODO),
+        ]
+
+    @staticmethod
+    def test_list_all_is_empty_before_any_write(files):
+        assert files.list_all() == []
+
+    @staticmethod
     def test_delete_many(roots, files):
         root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
         written = files.upsert_many([a_file(root.id, TODO), a_file(root.id, INBOX)])
