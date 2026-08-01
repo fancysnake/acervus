@@ -52,7 +52,7 @@ consequences are baked into the layout below — `FileInfo` lives in
 | pacts | `config.py`, `root.py`, `file.py`, `mark.py`, `stack.py`, `transaction.py`, `filesystem.py` |
 | specs | `mark.py`, `stack.py` (invariants only, as they appear) |
 | mills | `root.py`, `file.py`, `mark.py`, `stack.py` |
-| links | `db/sqlalchemy/{__init__,models,engine,repositories}.py`, `fs/pathlib.py` |
+| links | `db/sqlalchemy/{__init__,models,engine,repositories,transaction}.py`, `fs/pathlib.py` |
 | gates | `tui/textual/{app,roots,files,marks,stacks}.py` |
 | inits | `config.py`, `wiring.py`, `repositories.py`, `services.py` |
 | tests | `tests/unit/{pacts,mills}/`, `tests/integration/{inits,links,tui}/` |
@@ -82,10 +82,11 @@ same interface segregation the services themselves follow.
 
 `links` slices `{port}/{adapter}/{kind}`, `gates` slices `{port}/{adapter}/{page}`.
 The `links/db/sqlalchemy/__init__.py` facade is the adapter's public surface: it
-re-exports the repository classes and nothing else. Models, the declarative base
-and the engine stay internal, so external code writes
-`from acervus.links.db.sqlalchemy import RootRepository` and never reaches
-`models`.
+re-exports exactly the classes `inits` injects into services — the repositories
+and the transaction — because each of those is named by a protocol in `pacts`.
+Models, the declarative base, the engine and the session stay internal, so
+external code writes `from acervus.links.db.sqlalchemy import RootRepository`
+and never reaches `models`.
 
 `__init__.py` files stay empty by default. The adapter facade above is the one
 sanctioned exception; import every other symbol from the module that defines it.
@@ -191,19 +192,29 @@ requires.
 
 ---
 
-### Step 4: inits — repositories, services, and a session
+### Step 4: the transaction adapter and the container
+
+**Tests first:** `tests/integration/links/test_transaction.py` — against a real
+SQLite file, that a clean exit commits and an exception rolls back.
 
 **Files:**
 
+- `links/db/sqlalchemy/transaction.py` — `SessionTransaction`, implementing
+  `TransactionProtocol` over the session the repositories share: `atomic()`
+  commits on clean exit and rolls back on exception
+- `links/db/sqlalchemy/__init__.py` — re-export it alongside the repositories
 - `inits/repositories.py` — engine creation, `init_db`, a session, and a
-  `@cached_property` per repository
+  `@cached_property` per repository and for the transaction
 - `inits/services.py` — a `@cached_property` per service, flat
 
 **Test:** `tests/integration/inits/test_wiring.py` — the container builds, the
 database file is created, repositories and services are reachable.
 
-`inits` is the only layer that names both a concrete repository and a concrete
-service, which is exactly its job.
+The transaction is an adapter detail of the database port — it wraps the
+session — so it lives in `links` next to the repositories that share that
+session, and `inits` hands it to the services that need one. `inits` is the
+only layer that names both a concrete repository and a concrete service, which
+is exactly its job.
 
 ---
 

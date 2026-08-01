@@ -73,7 +73,7 @@ Seven `inside-*` independence contracts sit on top of the seven layer contracts.
 
 `pacts`, `mills` and `specs` slice by **noun** (root, file, mark, stack), and `pacts` and `mills` must mirror each other. A pacts noun module holds every contract for that noun together — DTO, write TypedDict, repository protocol, errors. Do not create `pacts/dtos.py` or `pacts/protocols.py`; that slices by technical kind.
 
-`links` slices `{port}/{adapter}/{kind}` (`links/db/sqlalchemy/models.py`), `gates` slices `{port}/{adapter}/{page}` (`gates/tui/textual/app.py`). The `links/db/sqlalchemy/__init__.py` facade is the adapter's public surface and re-exports repositories only — models, the declarative base and the engine stay internal. Every other `__init__.py` stays empty; import symbols from the module that defines them.
+`links` slices `{port}/{adapter}/{kind}` (`links/db/sqlalchemy/models.py`), `gates` slices `{port}/{adapter}/{page}` (`gates/tui/textual/app.py`). The `links/db/sqlalchemy/__init__.py` facade is the adapter's public surface and re-exports exactly what `inits` injects into services — the repositories and the transaction, each backed by a protocol in `pacts`. Models, the declarative base, the engine and the session stay internal. Every other `__init__.py` stays empty; import symbols from the module that defines them.
 
 Repositories implement a protocol declared in `pacts`, declare it as a base class, and return Pydantic DTOs (`ConfigDict(from_attributes=True)`), never ORM models. Services take the specific repository protocols they use plus a `TransactionProtocol` by constructor — there is no Unit of Work.
 
