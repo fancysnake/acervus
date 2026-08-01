@@ -5,6 +5,8 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+from acervus.links.fs.pathlib import PathlibFilesystemReader
+from acervus.mills.file import ScanService
 from acervus.mills.root import RootService
 
 if TYPE_CHECKING:
@@ -21,3 +23,13 @@ class Services:
     def roots(self) -> RootService:
         """Return the root service."""
         return RootService(self._repositories.roots, self._repositories.transaction)
+
+    @cached_property
+    def scan(self) -> ScanService:
+        """Return the scan service, reading the filesystem with pathlib."""
+        return ScanService(
+            self._repositories.files,
+            self._repositories.roots,
+            PathlibFilesystemReader(),
+            self._repositories.transaction,
+        )

@@ -11,6 +11,7 @@ from acervus.gates.tui.textual.roots import RootsScreen
 if TYPE_CHECKING:
     from textual.binding import BindingType
 
+    from acervus.pacts.file import ScanServiceProtocol
     from acervus.pacts.root import RootServiceProtocol
 
 
@@ -24,9 +25,10 @@ class AcervusApp(App[None]):
     TITLE = "Acervus"
     BINDINGS: ClassVar[list[BindingType]] = [("q", "quit", "Quit")]
 
-    def __init__(self, roots: RootServiceProtocol) -> None:
+    def __init__(self, roots: RootServiceProtocol, scan: ScanServiceProtocol) -> None:
         super().__init__()
         self._roots = roots
+        self._scan = scan
 
     def get_default_screen(self) -> RootsScreen:
-        return RootsScreen(self._roots)
+        return RootsScreen(self._roots, self._scan)
