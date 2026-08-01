@@ -38,6 +38,20 @@ class FileWrite(TypedDict):
 
 
 @dataclass(frozen=True, slots=True)
+class FileFilter:
+    """How a file listing is narrowed.
+
+    An empty filter lists everything. Naming a mark and asking for unmarked
+    files at once is self-contradictory and lists nothing, which is the honest
+    answer rather than an error.
+    """
+
+    root_id: int | None = None
+    mark: str | None = None
+    unmarked: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class ScanResult:
     """How a scan changed the index."""
 
@@ -49,8 +63,8 @@ class ScanResult:
 class FileRepositoryProtocol(Protocol):
     """Data access for files."""
 
-    def list_all(self, root_id: int | None = None) -> list[FileDTO]:
-        """Return indexed files, narrowed to one root when given an id."""
+    def list_all(self, scope: FileFilter | None = None) -> list[FileDTO]:
+        """Return indexed files, narrowed by the filter when one is given."""
 
     def list_by_root(self, root_id: int) -> list[FileDTO]:
         """Return every indexed file under this root."""
@@ -65,8 +79,8 @@ class FileRepositoryProtocol(Protocol):
 class FileServiceProtocol(Protocol):
     """Business operations on indexed files."""
 
-    def list_all(self, root_id: int | None = None) -> list[FileDTO]:
-        """Return indexed files, narrowed to one root when given an id."""
+    def list_all(self, scope: FileFilter | None = None) -> list[FileDTO]:
+        """Return indexed files, narrowed by the filter when one is given."""
 
 
 class ScanServiceProtocol(Protocol):

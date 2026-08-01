@@ -30,6 +30,10 @@ NO_MARKS_MESSAGE = "No marks yet"
 NO_MARKS_CARRIED = "Marks: none"
 REJECTED = "cannot contain"
 BAD_NAME = "no:colons"
+MARK_FILTER_KEY = "k"
+ANY_MARK = "any mark"
+UNMARKED = "unmarked"
+NO_MATCHES_MESSAGE = "No files match this filter"
 
 
 @pytest.fixture(name="services")
@@ -60,6 +64,12 @@ def indexed_fixture(services, tree):
 
 async def type_name(pilot, name: str) -> None:
     await pilot.press(*name, SUBMIT_KEY)
+
+
+async def open_files_and_mark_first(pilot) -> None:
+    """Open the files screen and put INVOICE on the first file, inbox.md."""
+    await pilot.press(FILES_KEY, ADD_KEY)
+    await type_name(pilot, INVOICE)
 
 
 class TestAddingAMark:
@@ -192,6 +202,81 @@ class TestRemovingAMark:
             await type_name(pilot, INVOICE)
 
         assert [mark.name for mark in indexed.marks.list_all()] == [INVOICE]
+
+
+class TestFilteringByMark:
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_it_starts_showing_any_mark(app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert ANY_MARK in str(label.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_it_narrows_to_files_carrying_the_mark(app):
+        async with app.run_test() as pilot:
+            await open_files_and_mark_first(pilot)
+            await pilot.press(MARK_FILTER_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert table.row_count == 1
+            assert table.get_row_at(0)[1] == INBOX
+            assert INVOICE in str(label.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_the_next_step_is_the_unmarked_view(app):
+        async with app.run_test() as pilot:
+            await open_files_and_mark_first(pilot)
+            await pilot.press(MARK_FILTER_KEY, MARK_FILTER_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert table.row_count == 1
+            assert table.get_row_at(0)[1] == NOTES
+            assert UNMARKED in str(label.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_it_wraps_back_to_any_mark(app):
+        async with app.run_test() as pilot:
+            await open_files_and_mark_first(pilot)
+            for _ in range(1 + 2):  # the mark, unmarked, then back round
+                await pilot.press(MARK_FILTER_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert table.row_count == 1 + 1  # both files again
+            assert ANY_MARK in str(label.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_with_nothing_marked_it_steps_straight_to_unmarked(app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, MARK_FILTER_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert table.row_count == 1 + 1  # neither file carries anything
+            assert UNMARKED in str(label.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_a_filter_matching_nothing_says_so(app):
+        async with app.run_test() as pilot:
+            await open_files_and_mark_first(pilot)
+            await pilot.press(DOWN_KEY, ADD_KEY)
+            await type_name(pilot, INVOICE)
+            await pilot.press(MARK_FILTER_KEY, MARK_FILTER_KEY)
+            message = pilot.app.screen.query_one("#no-files", Static)
+
+            assert message.display
+            assert NO_MATCHES_MESSAGE in str(message.render())
+            assert not pilot.app.screen.query_one("#files", DataTable).display
 
 
 class TestMarksScreen:

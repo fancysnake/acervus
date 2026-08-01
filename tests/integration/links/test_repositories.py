@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from acervus.links.db.sqlalchemy import FileRepository, MarkRepository, RootRepository
-from acervus.pacts.file import FileDTO, FileWrite
+from acervus.pacts.file import FileDTO, FileFilter, FileWrite
 from acervus.pacts.mark import MarkDTO, MarkNotFoundError, MarkSummary
 from acervus.pacts.root import RootDTO, RootNotFoundError
 
@@ -238,7 +238,7 @@ class TestFileRepository:
         )
         files.upsert_many([a_file(docs.id, TODO), a_file(photos.id, INBOX)])
 
-        listed = files.list_all(photos.id)
+        listed = files.list_all(FileFilter(root_id=photos.id))
 
         assert [file.relative_path for file in listed] == [INBOX]
 
@@ -273,6 +273,80 @@ class TestFileRepository:
         remaining = files.list_by_root(root.id)
         assert len(remaining) == 1
         assert remaining[0].id == written[1].id
+
+
+class TestFileRepositoryMarkFilter:
+    @staticmethod
+    def test_it_keeps_only_files_carrying_the_mark(roots, files, marks):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        todo, _ = files.upsert_many([a_file(root.id, TODO), a_file(root.id, INBOX)])
+        marks.attach(todo.id, marks.create(INVOICE).id)
+
+        listed = files.list_all(FileFilter(mark=INVOICE))
+
+        assert [file.relative_path for file in listed] == [TODO]
+
+    @staticmethod
+    def test_an_unused_mark_matches_nothing(roots, files, marks):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        files.upsert_many([a_file(root.id, TODO)])
+        marks.create(INVOICE)
+
+        assert files.list_all(FileFilter(mark=INVOICE)) == []
+
+    @staticmethod
+    def test_a_file_is_listed_once_however_many_marks_it_carries(roots, files, marks):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        todo = files.upsert_many([a_file(root.id, TODO)])[0]
+        for name in (INVOICE, HOLIDAY):
+            marks.attach(todo.id, marks.create(name).id)
+
+        assert len(files.list_all(FileFilter(mark=INVOICE))) == 1
+
+    @staticmethod
+    def test_unmarked_keeps_only_files_carrying_nothing(roots, files, marks):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        todo, _ = files.upsert_many([a_file(root.id, TODO), a_file(root.id, INBOX)])
+        marks.attach(todo.id, marks.create(INVOICE).id)
+
+        listed = files.list_all(FileFilter(unmarked=True))
+
+        assert [file.relative_path for file in listed] == [INBOX]
+
+    @staticmethod
+    def test_a_file_stripped_of_its_marks_counts_as_unmarked(roots, files, marks):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        todo = files.upsert_many([a_file(root.id, TODO)])[0]
+        mark = marks.create(INVOICE)
+        marks.attach(todo.id, mark.id)
+
+        marks.detach(todo.id, mark.id)
+
+        assert len(files.list_all(FileFilter(unmarked=True))) == 1
+
+    @staticmethod
+    def test_the_root_and_mark_filters_combine(roots, files, marks):
+        docs, photos = roots.upsert_many(
+            [{"alias": DOCS, "path": DOCS_PATH}, {"alias": PHOTOS, "path": PHOTOS_PATH}]
+        )
+        here, there = files.upsert_many(
+            [a_file(docs.id, TODO), a_file(photos.id, TODO)]
+        )
+        mark = marks.create(INVOICE)
+        marks.attach(here.id, mark.id)
+        marks.attach(there.id, mark.id)
+
+        listed = files.list_all(FileFilter(root_id=docs.id, mark=INVOICE))
+
+        assert [file.root_id for file in listed] == [docs.id]
+
+    @staticmethod
+    def test_asking_for_a_mark_and_unmarked_at_once_lists_nothing(roots, files, marks):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        todo = files.upsert_many([a_file(root.id, TODO)])[0]
+        marks.attach(todo.id, marks.create(INVOICE).id)
+
+        assert files.list_all(FileFilter(mark=INVOICE, unmarked=True)) == []
 
 
 class TestMarkRepository:

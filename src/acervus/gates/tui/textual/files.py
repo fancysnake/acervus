@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING, ClassVar
 
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Static
 
 from acervus.gates.tui.textual.marks import MarkNamePrompt
+from acervus.pacts.file import FileFilter
 from acervus.pacts.mark import InvalidMarkNameError, MarkNotFoundError
 
 if TYPE_CHECKING:
@@ -19,13 +21,16 @@ if TYPE_CHECKING:
     from acervus.pacts.root import RootDTO, RootServiceProtocol
 
 NO_FILES_MESSAGE = "No files indexed. Scan a root first."
+NO_MATCHES_MESSAGE = "No files match this filter."
 ALL_ROOTS = "all roots"
-FILTER_LABEL = "Showing: {scope}"
+ANY_MARK = "any mark"
+UNMARKED = "unmarked"
+FILTER_LABEL = "Showing: {roots}, {marks}"
 UNKNOWN_ALIAS = "?"
 ADD_PROMPT = "Mark to add:"
 REMOVE_PROMPT = "Mark to remove:"
 MARKED = "Marked {path} {name}."
-UNMARKED = "Took {name} off {path}."
+TOOK_OFF = "Took {name} off {path}."
 CARRIES = "Marks: {names}"
 CARRIES_NONE = "Marks: none"
 
@@ -35,6 +40,7 @@ class FilesScreen(Screen[None]):
 
     BINDINGS: ClassVar[list[BindingType]] = [
         ("r", "cycle_filter", "Filter by root"),
+        ("k", "cycle_mark", "Filter by mark"),
         ("a", "add_mark", "Add mark"),
         ("x", "remove_mark", "Remove mark"),
         ("escape", "app.pop_screen", "Back"),
@@ -52,7 +58,7 @@ class FilesScreen(Screen[None]):
         self._marks = marks
         self._listed: list[RootDTO] = []
         self._shown: list[FileDTO] = []
-        self._filter: int | None = None
+        self._scope = FileFilter()
 
     def compose(self) -> ComposeResult:
         self._listed = self._roots.list_all()
@@ -78,8 +84,24 @@ class FilesScreen(Screen[None]):
         """Step the root filter on by one, wrapping back to all roots."""
         if not self._listed:
             return
-        scopes: list[int | None] = [None, *(root.id for root in self._listed)]
-        self._filter = scopes[(scopes.index(self._filter) + 1) % len(scopes)]
+        steps: list[int | None] = [None, *(root.id for root in self._listed)]
+        standing = (
+            steps.index(self._scope.root_id) if self._scope.root_id in steps else 0
+        )
+        self._scope = replace(self._scope, root_id=steps[(standing + 1) % len(steps)])
+        self._refresh()
+
+    def action_cycle_mark(self) -> None:
+        """Step the mark filter on: any mark, then each mark, then unmarked."""
+        steps: list[tuple[str | None, bool]] = [
+            (None, False),
+            *((mark.name, False) for mark in self._marks.list_all()),
+            (None, True),
+        ]
+        current = (self._scope.mark, self._scope.unmarked)
+        standing = steps.index(current) if current in steps else 0
+        mark, unmarked = steps[(standing + 1) % len(steps)]
+        self._scope = replace(self._scope, mark=mark, unmarked=unmarked)
         self._refresh()
 
     def action_add_mark(self) -> None:
@@ -113,7 +135,7 @@ class FilesScreen(Screen[None]):
         except (InvalidMarkNameError, MarkNotFoundError) as error:
             self._report(str(error))
             return
-        self._report(UNMARKED.format(name=name.strip(), path=file.relative_path))
+        self._report(TOOK_OFF.format(name=name.strip(), path=file.relative_path))
         self._show_carried()
 
     def _under_cursor(self) -> FileDTO | None:
@@ -137,7 +159,7 @@ class FilesScreen(Screen[None]):
 
     def _refresh(self) -> None:
         by_id = {root.id: root.alias for root in self._listed}
-        self._shown = self._files.list_all(self._filter)
+        self._shown = self._files.list_all(self._scope)
 
         table = self.query_one("#files", DataTable)
         table.clear()
@@ -149,10 +171,21 @@ class FilesScreen(Screen[None]):
             )
 
         table.display = bool(self._shown)
-        self.query_one("#no-files", Static).display = not self._shown
+        empty = self.query_one("#no-files", Static)
+        empty.display = not self._shown
+        empty.update(
+            NO_FILES_MESSAGE if self._scope == FileFilter() else NO_MATCHES_MESSAGE
+        )
+        root_id = self._scope.root_id
         self.query_one("#file-filter", Static).update(
             FILTER_LABEL.format(
-                scope=ALL_ROOTS if self._filter is None else by_id[self._filter]
+                roots=ALL_ROOTS if root_id is None else by_id[root_id],
+                marks=self._mark_scope(),
             )
         )
         self._show_carried()
+
+    def _mark_scope(self) -> str:
+        if self._scope.unmarked:
+            return UNMARKED
+        return ANY_MARK if self._scope.mark is None else self._scope.mark

@@ -8,7 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.sql.functions import count
 
 from acervus.links.db.sqlalchemy.models import File, FileMark, Mark, Root
-from acervus.pacts.file import FileDTO, FileRepositoryProtocol, FileWrite
+from acervus.pacts.file import FileDTO, FileFilter, FileRepositoryProtocol, FileWrite
 from acervus.pacts.mark import (
     MarkDTO,
     MarkNotFoundError,
@@ -116,15 +116,27 @@ class FileRepository(FileRepositoryProtocol):
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def list_all(self, root_id: int | None = None) -> list[FileDTO]:
-        """Return indexed files, narrowed to one root when given an id.
+    def list_all(self, scope: FileFilter | None = None) -> list[FileDTO]:
+        """Return indexed files, narrowed by the filter when one is given.
 
         Returns:
             The matching files, ordered by root and then relative path.
         """
+        narrowed = scope or FileFilter()
         statement = select(File).order_by(File.root_id, File.relative_path)
-        if root_id is not None:
-            statement = statement.where(File.root_id == root_id)
+        if narrowed.root_id is not None:
+            statement = statement.where(File.root_id == narrowed.root_id)
+        if narrowed.mark is not None:
+            statement = statement.where(
+                select(FileMark)
+                .join(Mark, Mark.id == FileMark.mark_id)
+                .where(FileMark.file_id == File.id, Mark.name == narrowed.mark)
+                .exists()
+            )
+        if narrowed.unmarked:
+            statement = statement.where(
+                ~select(FileMark).where(FileMark.file_id == File.id).exists()
+            )
         return [
             FileDTO.model_validate(record)
             for record in self._session.scalars(statement).all()
