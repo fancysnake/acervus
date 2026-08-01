@@ -19,6 +19,10 @@ NO_ROOTS_MESSAGE = "No roots configured"
 SCAN_KEY = "s"
 NOTHING_ADDED = "0 added"
 BOTH_ADDED = "2 added"
+ONE_REMOVED = "1 removed"
+ONE_UPDATED = "1 updated"
+INBOX = "inbox.md"
+LONGER = "hello again, and then some"
 
 
 @pytest.fixture(name="repositories")
@@ -175,6 +179,38 @@ class TestScanAction:
 
             assert PHOTOS in str(status.render())
             assert NOTHING_ADDED in str(status.render())
+
+    @staticmethod
+    async def test_a_deleted_file_leaves_the_index(
+        app, services, repositories, root_dir
+    ):
+        write(root_dir, INBOX)
+        root = services.roots.sync({DOCS: root_dir})[0]
+
+        async with app.run_test() as pilot:
+            await pilot.press(SCAN_KEY)
+            (root_dir / INBOX).unlink()
+            await pilot.press(SCAN_KEY)
+            status = pilot.app.query_one("#scan-result", Static)
+
+            assert ONE_REMOVED in str(status.render())
+
+        assert not repositories.files.list_by_root(root.id)
+
+    @staticmethod
+    async def test_a_changed_file_is_rewritten(app, services, repositories, root_dir):
+        write(root_dir, INBOX)
+        root = services.roots.sync({DOCS: root_dir})[0]
+
+        async with app.run_test() as pilot:
+            await pilot.press(SCAN_KEY)
+            (root_dir / INBOX).write_text(LONGER)
+            await pilot.press(SCAN_KEY)
+            status = pilot.app.query_one("#scan-result", Static)
+
+            assert ONE_UPDATED in str(status.render())
+
+        assert repositories.files.list_by_root(root.id)[0].size == len(LONGER)
 
     @staticmethod
     async def test_scanning_an_empty_index_does_nothing(app):
