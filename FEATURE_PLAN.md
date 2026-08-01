@@ -273,9 +273,27 @@ updated cases.
 
 ### Step 10: TUI — files screen
 
-**Files:** `pacts/file.py` (list filters), `links/.../repositories.py`
-(`FileRepository.list_all`), `gates/tui/textual/files.py` — files as
-`alias:relative/path`, filterable by root.
+**Tests first:** `tests/unit/mills/test_file.py` extension for the service;
+`tests/integration/links/test_repositories.py` extension for the unfiltered
+listing; `tests/integration/tui/test_files.py` for the screen.
+
+**Files:**
+
+- `pacts/file.py` — `FileServiceProtocol` with `list_all(root_id=None)`, and
+  the same filter on `FileRepositoryProtocol`
+- `links/db/sqlalchemy/repositories.py` — `FileRepository.list_all(root_id=None)`
+- `mills/file.py` — `FileService`, beside `ScanService`
+- `inits/services.py` — the `files` leaf
+- `gates/tui/textual/files.py` — files as `alias:relative/path`, filterable by
+  root
+- `gates/tui/textual/app.py` — a binding that opens the files screen
+
+The screen takes `RootServiceProtocol` and `FileServiceProtocol` — service
+protocols only, never a repository. Rendering `alias:relative/path` needs the
+root aliases as well as the files, because `FileDTO` carries `root_id`; mapping
+one to the other is presentation and stays in the screen. The service exists so
+that filtering is a business decision in `mills` rather than a join assembled
+in a gate, and so `pacts/file.py` and `mills/file.py` keep mirroring.
 
 ---
 
