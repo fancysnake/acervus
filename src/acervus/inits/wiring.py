@@ -15,6 +15,21 @@ NO_CONFIG_MESSAGE = (
 )
 
 
+def build_app(services: Services) -> AcervusApp:
+    """Hand the TUI the service protocols its screens need.
+
+    Returns:
+        An app ready to run, holding no container and no configuration.
+    """
+    return AcervusApp(
+        roots=services.roots,
+        scan=services.scan,
+        files=services.files,
+        marks=services.marks,
+        stacks=services.stacks,
+    )
+
+
 def main() -> None:
     """Load config, reconcile the roots it names, and run the Acervus TUI."""
     if (config := load_config()) is None:
@@ -22,4 +37,4 @@ def main() -> None:
         sys.exit(1)
     services = Services(Repositories(config.db_path))
     services.roots.sync(config.roots)
-    AcervusApp(services.roots, services.scan, services.files, services.marks).run()
+    build_app(services).run()

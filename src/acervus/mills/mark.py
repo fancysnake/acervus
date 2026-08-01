@@ -16,7 +16,7 @@ class MarkService(MarkServiceProtocol):
     """Puts marks on files and takes them off again."""
 
     def __init__(
-        self, marks: MarkRepositoryProtocol, transaction: TransactionProtocol
+        self, *, marks: MarkRepositoryProtocol, transaction: TransactionProtocol
     ) -> None:
         self._marks = marks
         self._transaction = transaction
@@ -37,7 +37,7 @@ class MarkService(MarkServiceProtocol):
         """
         return self._marks.list_for_file(file_id)
 
-    def add(self, file_id: int, name: str) -> MarkDTO:
+    def add(self, file_id: int, *, name: str) -> MarkDTO:
         """Put a mark of this name on this file.
 
         The mark is created the first time it is used, so marks come into
@@ -52,10 +52,10 @@ class MarkService(MarkServiceProtocol):
                 mark = self._marks.read_by_name(cleaned)
             except MarkNotFoundError:
                 mark = self._marks.create(cleaned)
-            self._marks.attach(file_id, mark.id)
+            self._marks.attach(file_id, mark_id=mark.id)
             return mark
 
-    def remove(self, file_id: int, name: str) -> None:
+    def remove(self, file_id: int, *, name: str) -> None:
         """Take this mark off this file.
 
         A mark no file carries any more is deleted, so the mark list stays a
@@ -64,6 +64,6 @@ class MarkService(MarkServiceProtocol):
         cleaned = clean_mark_name(name)
         with self._transaction.atomic():
             mark = self._marks.read_by_name(cleaned)
-            self._marks.detach(file_id, mark.id)
+            self._marks.detach(file_id, mark_id=mark.id)
             if self._marks.count_files(mark.id) == 0:
                 self._marks.delete(mark.id)

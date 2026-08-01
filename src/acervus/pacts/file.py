@@ -41,14 +41,17 @@ class FileWrite(TypedDict):
 class FileFilter:
     """How a file listing is narrowed.
 
-    An empty filter lists everything. Naming a mark and asking for unmarked
-    files at once is self-contradictory and lists nothing, which is the honest
-    answer rather than an error.
+    An empty filter lists everything, and the narrowings combine. Naming a
+    mark and asking for unmarked files at once is self-contradictory and lists
+    nothing, which is the honest answer rather than an error; the same goes
+    for a stack and unstacked.
     """
 
     root_id: int | None = None
     mark: str | None = None
     unmarked: bool = False
+    stack: str | None = None
+    unstacked: bool = False
 
 
 @dataclass(frozen=True, slots=True)

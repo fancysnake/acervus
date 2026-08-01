@@ -1,5 +1,9 @@
 """Tests for the mark service in mills."""
 
+# Pytest supplies fixtures by name, so a test taking three of them is not the
+# argument-order hazard the positional limit guards against.
+# pylint: disable=too-many-positional-arguments
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, Mock
@@ -39,7 +43,7 @@ def transaction_fixture():
 
 @pytest.fixture(name="service")
 def service_fixture(marks, transaction):
-    return MarkService(marks, transaction)
+    return MarkService(marks=marks, transaction=transaction)
 
 
 class TestListing:
@@ -65,32 +69,32 @@ class TestListing:
 class TestAdd:
     @staticmethod
     def test_it_attaches_an_existing_mark(service, marks):
-        assert service.add(FILE_ID, INVOICE) == INVOICE_MARK
+        assert service.add(FILE_ID, name=INVOICE) == INVOICE_MARK
 
         marks.read_by_name.assert_called_once_with(INVOICE)
         marks.create.assert_not_called()
-        marks.attach.assert_called_once_with(FILE_ID, INVOICE_MARK.id)
+        marks.attach.assert_called_once_with(FILE_ID, mark_id=INVOICE_MARK.id)
 
     @staticmethod
     def test_it_creates_a_mark_the_index_lacks(service, marks):
         marks.read_by_name.side_effect = MarkNotFoundError(INVOICE)
         marks.create.return_value = INVOICE_MARK
 
-        assert service.add(FILE_ID, INVOICE) == INVOICE_MARK
+        assert service.add(FILE_ID, name=INVOICE) == INVOICE_MARK
 
         marks.create.assert_called_once_with(INVOICE)
-        marks.attach.assert_called_once_with(FILE_ID, INVOICE_MARK.id)
+        marks.attach.assert_called_once_with(FILE_ID, mark_id=INVOICE_MARK.id)
 
     @staticmethod
     def test_it_cleans_the_name_first(service, marks):
-        service.add(FILE_ID, f"  {INVOICE}  ")
+        service.add(FILE_ID, name=f"  {INVOICE}  ")
 
         marks.read_by_name.assert_called_once_with(INVOICE)
 
     @staticmethod
     def test_a_bad_name_never_reaches_the_repository(service, marks, transaction):
         with pytest.raises(InvalidMarkNameError):
-            service.add(FILE_ID, "two words")
+            service.add(FILE_ID, name="two words")
 
         marks.read_by_name.assert_not_called()
         marks.attach.assert_not_called()
@@ -98,7 +102,7 @@ class TestAdd:
 
     @staticmethod
     def test_it_writes_inside_one_transaction(service, transaction):
-        service.add(FILE_ID, INVOICE)
+        service.add(FILE_ID, name=INVOICE)
 
         transaction.atomic.assert_called_once_with()
         transaction.atomic.return_value.__enter__.assert_called_once_with()
@@ -108,16 +112,16 @@ class TestAdd:
 class TestRemove:
     @staticmethod
     def test_it_detaches_the_mark(service, marks):
-        service.remove(FILE_ID, INVOICE)
+        service.remove(FILE_ID, name=INVOICE)
 
         marks.read_by_name.assert_called_once_with(INVOICE)
-        marks.detach.assert_called_once_with(FILE_ID, INVOICE_MARK.id)
+        marks.detach.assert_called_once_with(FILE_ID, mark_id=INVOICE_MARK.id)
 
     @staticmethod
     def test_a_mark_still_in_use_survives(service, marks):
         marks.count_files.return_value = 2
 
-        service.remove(FILE_ID, INVOICE)
+        service.remove(FILE_ID, name=INVOICE)
 
         marks.delete.assert_not_called()
 
@@ -125,7 +129,7 @@ class TestRemove:
     def test_a_mark_nothing_carries_is_deleted(service, marks):
         marks.count_files.return_value = 0
 
-        service.remove(FILE_ID, INVOICE)
+        service.remove(FILE_ID, name=INVOICE)
 
         marks.count_files.assert_called_once_with(INVOICE_MARK.id)
         marks.delete.assert_called_once_with(INVOICE_MARK.id)
@@ -135,21 +139,21 @@ class TestRemove:
         marks.read_by_name.side_effect = MarkNotFoundError(HOLIDAY)
 
         with pytest.raises(MarkNotFoundError):
-            service.remove(FILE_ID, HOLIDAY)
+            service.remove(FILE_ID, name=HOLIDAY)
 
         marks.detach.assert_not_called()
 
     @staticmethod
     def test_a_bad_name_never_reaches_the_repository(service, marks, transaction):
         with pytest.raises(InvalidMarkNameError):
-            service.remove(FILE_ID, "")
+            service.remove(FILE_ID, name="")
 
         marks.read_by_name.assert_not_called()
         transaction.atomic.assert_not_called()
 
     @staticmethod
     def test_it_writes_inside_one_transaction(service, transaction):
-        service.remove(FILE_ID, INVOICE)
+        service.remove(FILE_ID, name=INVOICE)
 
         transaction.atomic.assert_called_once_with()
         transaction.atomic.return_value.__enter__.assert_called_once_with()

@@ -9,14 +9,8 @@ from __future__ import annotations
 import pytest
 from textual.widgets import DataTable, Static
 
-from acervus.gates.tui.textual.app import AcervusApp
-from acervus.inits.repositories import Repositories
-from acervus.inits.services import Services
-
-DOCS = "docs"
 INBOX = "inbox.md"
 NOTES = "notes.md"
-CONTENT = "hello"
 INVOICE = "invoice"
 HOLIDAY = "holiday"
 FILES_KEY = "f"
@@ -34,32 +28,6 @@ MARK_FILTER_KEY = "k"
 ANY_MARK = "any mark"
 UNMARKED = "unmarked"
 NO_MATCHES_MESSAGE = "No files match this filter"
-
-
-@pytest.fixture(name="services")
-def services_fixture(tmp_path):
-    return Services(Repositories(tmp_path / "acervus.db"))
-
-
-@pytest.fixture(name="app")
-def app_fixture(services):
-    return AcervusApp(services.roots, services.scan, services.files, services.marks)
-
-
-@pytest.fixture(name="tree")
-def tree_fixture(tmp_path):
-    tree = tmp_path / "docs"
-    tree.mkdir()
-    for name in (INBOX, NOTES):
-        (tree / name).write_text(CONTENT)
-    return tree
-
-
-@pytest.fixture(name="indexed")
-def indexed_fixture(services, tree):
-    services.roots.sync({DOCS: tree})
-    services.scan.scan(DOCS)
-    return services
 
 
 async def type_name(pilot, name: str) -> None:

@@ -1,5 +1,9 @@
 """Tests for the SQLAlchemy repositories in links, against a real database."""
 
+# Pytest supplies fixtures by name, so a test taking three of them is not the
+# argument-order hazard the positional limit guards against.
+# pylint: disable=too-many-positional-arguments
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -299,7 +303,7 @@ class TestFileRepositoryMarkFilter:
     def test_it_keeps_only_files_carrying_the_mark(roots, files, marks):
         root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
         todo, _ = files.upsert_many([a_file(root.id, TODO), a_file(root.id, INBOX)])
-        marks.attach(todo.id, marks.create(INVOICE).id)
+        marks.attach(todo.id, mark_id=marks.create(INVOICE).id)
 
         listed = files.list_all(FileFilter(mark=INVOICE))
 
@@ -318,7 +322,7 @@ class TestFileRepositoryMarkFilter:
         root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
         todo = files.upsert_many([a_file(root.id, TODO)])[0]
         for name in (INVOICE, HOLIDAY):
-            marks.attach(todo.id, marks.create(name).id)
+            marks.attach(todo.id, mark_id=marks.create(name).id)
 
         assert len(files.list_all(FileFilter(mark=INVOICE))) == 1
 
@@ -326,7 +330,7 @@ class TestFileRepositoryMarkFilter:
     def test_unmarked_keeps_only_files_carrying_nothing(roots, files, marks):
         root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
         todo, _ = files.upsert_many([a_file(root.id, TODO), a_file(root.id, INBOX)])
-        marks.attach(todo.id, marks.create(INVOICE).id)
+        marks.attach(todo.id, mark_id=marks.create(INVOICE).id)
 
         listed = files.list_all(FileFilter(unmarked=True))
 
@@ -337,9 +341,9 @@ class TestFileRepositoryMarkFilter:
         root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
         todo = files.upsert_many([a_file(root.id, TODO)])[0]
         mark = marks.create(INVOICE)
-        marks.attach(todo.id, mark.id)
+        marks.attach(todo.id, mark_id=mark.id)
 
-        marks.detach(todo.id, mark.id)
+        marks.detach(todo.id, mark_id=mark.id)
 
         assert len(files.list_all(FileFilter(unmarked=True))) == 1
 
@@ -352,8 +356,8 @@ class TestFileRepositoryMarkFilter:
             [a_file(docs.id, TODO), a_file(photos.id, TODO)]
         )
         mark = marks.create(INVOICE)
-        marks.attach(here.id, mark.id)
-        marks.attach(there.id, mark.id)
+        marks.attach(here.id, mark_id=mark.id)
+        marks.attach(there.id, mark_id=mark.id)
 
         listed = files.list_all(FileFilter(root_id=docs.id, mark=INVOICE))
 
@@ -363,7 +367,7 @@ class TestFileRepositoryMarkFilter:
     def test_asking_for_a_mark_and_unmarked_at_once_lists_nothing(roots, files, marks):
         root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
         todo = files.upsert_many([a_file(root.id, TODO)])[0]
-        marks.attach(todo.id, marks.create(INVOICE).id)
+        marks.attach(todo.id, mark_id=marks.create(INVOICE).id)
 
         assert files.list_all(FileFilter(mark=INVOICE, unmarked=True)) == []
 
@@ -409,7 +413,7 @@ class TestMarkRepository:
     def test_attach_puts_a_mark_on_a_file(marked_file, marks):
         mark = marks.create(INVOICE)
 
-        marks.attach(marked_file.id, mark.id)
+        marks.attach(marked_file.id, mark_id=mark.id)
 
         assert [found.name for found in marks.list_for_file(marked_file.id)] == [
             INVOICE
@@ -419,15 +423,15 @@ class TestMarkRepository:
     def test_attaching_twice_links_once(marked_file, marks):
         mark = marks.create(INVOICE)
 
-        marks.attach(marked_file.id, mark.id)
-        marks.attach(marked_file.id, mark.id)
+        marks.attach(marked_file.id, mark_id=mark.id)
+        marks.attach(marked_file.id, mark_id=mark.id)
 
         assert marks.count_files(mark.id) == 1
 
     @staticmethod
     def test_list_for_file_is_ordered_by_name(marked_file, marks):
         for name in (INVOICE, HOLIDAY):
-            marks.attach(marked_file.id, marks.create(name).id)
+            marks.attach(marked_file.id, mark_id=marks.create(name).id)
 
         assert [found.name for found in marks.list_for_file(marked_file.id)] == [
             HOLIDAY,
@@ -448,8 +452,8 @@ class TestMarkRepository:
         )
         mark = marks.create(INVOICE)
 
-        marks.attach(first.id, mark.id)
-        marks.attach(second.id, mark.id)
+        marks.attach(first.id, mark_id=mark.id)
+        marks.attach(second.id, mark_id=mark.id)
 
         assert marks.count_files(mark.id) == 1 + 1  # both files carry it
         assert marks.list_all()[0].file_count == 1 + 1  # and the summary agrees
@@ -457,9 +461,9 @@ class TestMarkRepository:
     @staticmethod
     def test_detach_takes_the_mark_off(marked_file, marks):
         mark = marks.create(INVOICE)
-        marks.attach(marked_file.id, mark.id)
+        marks.attach(marked_file.id, mark_id=mark.id)
 
-        marks.detach(marked_file.id, mark.id)
+        marks.detach(marked_file.id, mark_id=mark.id)
 
         assert marks.list_for_file(marked_file.id) == []
         assert marks.count_files(mark.id) == 0
@@ -468,23 +472,23 @@ class TestMarkRepository:
     def test_detaching_a_mark_that_is_not_there_is_harmless(marked_file, marks):
         mark = marks.create(INVOICE)
 
-        marks.detach(marked_file.id, mark.id)
+        marks.detach(marked_file.id, mark_id=mark.id)
 
         assert marks.count_files(mark.id) == 0
 
     @staticmethod
     def test_detach_leaves_the_mark_itself(marked_file, marks):
         mark = marks.create(INVOICE)
-        marks.attach(marked_file.id, mark.id)
+        marks.attach(marked_file.id, mark_id=mark.id)
 
-        marks.detach(marked_file.id, mark.id)
+        marks.detach(marked_file.id, mark_id=mark.id)
 
         assert marks.read_by_name(INVOICE).id == mark.id
 
     @staticmethod
     def test_delete_removes_the_mark_and_its_links(marked_file, marks):
         mark = marks.create(INVOICE)
-        marks.attach(marked_file.id, mark.id)
+        marks.attach(marked_file.id, mark_id=mark.id)
 
         marks.delete(mark.id)
 
@@ -504,7 +508,7 @@ class TestMarkRepository:
     @staticmethod
     def test_marks_reach_the_database_file(engine, session, marked_file, marks):
         mark = marks.create(INVOICE)
-        marks.attach(marked_file.id, mark.id)
+        marks.attach(marked_file.id, mark_id=mark.id)
         session.commit()
 
         with Session(engine) as fresh:
@@ -558,7 +562,7 @@ class TestStackRepository:
     def test_set_for_file_puts_it_in(marked_file, stacks):
         stack = stacks.create(TRIP)
 
-        stacks.set_for_file(marked_file.id, stack.id)
+        stacks.set_for_file(marked_file.id, stack_id=stack.id)
 
         assert stacks.read_for_file(marked_file.id) == stack
         assert stacks.count_files(stack.id) == 1
@@ -566,9 +570,9 @@ class TestStackRepository:
     @staticmethod
     def test_set_for_file_none_takes_it_out(marked_file, stacks):
         stack = stacks.create(TRIP)
-        stacks.set_for_file(marked_file.id, stack.id)
+        stacks.set_for_file(marked_file.id, stack_id=stack.id)
 
-        stacks.set_for_file(marked_file.id, None)
+        stacks.set_for_file(marked_file.id, stack_id=None)
 
         assert stacks.read_for_file(marked_file.id) is None
         assert stacks.count_files(stack.id) == 0
@@ -577,9 +581,9 @@ class TestStackRepository:
     def test_a_file_sits_in_one_stack_at_a_time(two_files, stacks):
         first = two_files[0]
         trip, taxes = stacks.create(TRIP), stacks.create(TAXES)
-        stacks.set_for_file(first.id, trip.id)
+        stacks.set_for_file(first.id, stack_id=trip.id)
 
-        stacks.set_for_file(first.id, taxes.id)
+        stacks.set_for_file(first.id, stack_id=taxes.id)
 
         assert stacks.read_for_file(first.id) == taxes
         assert stacks.count_files(trip.id) == 0
@@ -589,7 +593,7 @@ class TestStackRepository:
         stack = stacks.create(TRIP)
 
         for file in two_files:
-            stacks.set_for_file(file.id, stack.id)
+            stacks.set_for_file(file.id, stack_id=stack.id)
 
         assert stacks.count_files(stack.id) == 1 + 1  # both files sit in it
         assert stacks.list_all()[0].file_count == 1 + 1  # and the summary agrees
@@ -598,7 +602,7 @@ class TestStackRepository:
     def test_setting_the_stack_of_an_unknown_file_is_harmless(stacks):
         stack = stacks.create(TRIP)
 
-        stacks.set_for_file(UNKNOWN_ID, stack.id)
+        stacks.set_for_file(UNKNOWN_ID, stack_id=stack.id)
 
         assert stacks.count_files(stack.id) == 0
 
@@ -609,7 +613,7 @@ class TestStackRepository:
     @staticmethod
     def test_delete_turns_its_files_loose(marked_file, stacks):
         stack = stacks.create(TRIP)
-        stacks.set_for_file(marked_file.id, stack.id)
+        stacks.set_for_file(marked_file.id, stack_id=stack.id)
 
         stacks.delete(stack.id)
 
@@ -619,7 +623,7 @@ class TestStackRepository:
     @staticmethod
     def test_delete_leaves_the_files_themselves(marked_file, files, stacks):
         stack = stacks.create(TRIP)
-        stacks.set_for_file(marked_file.id, stack.id)
+        stacks.set_for_file(marked_file.id, stack_id=stack.id)
 
         stacks.delete(stack.id)
 
@@ -634,7 +638,7 @@ class TestStackRepository:
     @staticmethod
     def test_stacks_reach_the_database_file(engine, session, marked_file, stacks):
         stack = stacks.create(TRIP)
-        stacks.set_for_file(marked_file.id, stack.id)
+        stacks.set_for_file(marked_file.id, stack_id=stack.id)
         session.commit()
 
         with Session(engine) as fresh:

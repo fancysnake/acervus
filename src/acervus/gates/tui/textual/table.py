@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 def fill_table(
-    table: DataTable[str], columns: Sequence[str], rows: Iterable[Sequence[str]]
+    table: DataTable[str], *, columns: Sequence[str], rows: Iterable[Sequence[str]]
 ) -> None:
     """Set a table up for row selection, head it, and put these rows in it."""
     table.cursor_type = "row"

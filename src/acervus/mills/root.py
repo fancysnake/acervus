@@ -18,7 +18,7 @@ class RootService(RootServiceProtocol):
     """Keeps the indexed roots in step with the configured ones."""
 
     def __init__(
-        self, roots: RootRepositoryProtocol, transaction: TransactionProtocol
+        self, *, roots: RootRepositoryProtocol, transaction: TransactionProtocol
     ) -> None:
         self._roots = roots
         self._transaction = transaction

@@ -66,4 +66,6 @@ class MarksScreen(Screen[None]):
         if not self._listed:
             return
         rows = [(mark.name, str(mark.file_count)) for mark in self._listed]
-        fill_table(self.query_one("#marks", DataTable), ("Mark", "Files"), rows)
+        fill_table(
+            self.query_one("#marks", DataTable), columns=("Mark", "Files"), rows=rows
+        )

@@ -1,5 +1,9 @@
 """Tests for the root service in mills."""
 
+# Pytest supplies fixtures by name, so a test taking three of them is not the
+# argument-order hazard the positional limit guards against.
+# pylint: disable=too-many-positional-arguments
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -33,7 +37,7 @@ def transaction_fixture():
 
 @pytest.fixture(name="service")
 def service_fixture(roots, transaction):
-    return RootService(roots, transaction)
+    return RootService(roots=roots, transaction=transaction)
 
 
 class TestListAll:

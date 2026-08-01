@@ -5,16 +5,16 @@ goes through ``pilot.app.screen`` — ``pilot.app.query`` resolves against the
 default screen and would never see it.
 """
 
+# Pytest supplies fixtures by name, so a test taking three of them is not the
+# argument-order hazard the positional limit guards against.
+# pylint: disable=too-many-positional-arguments
+
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
 from textual.widgets import DataTable, Static
-
-from acervus.gates.tui.textual.app import AcervusApp
-from acervus.inits.repositories import Repositories
-from acervus.inits.services import Services
 
 DOCS = "docs"
 PHOTOS = "photos"
@@ -26,16 +26,6 @@ FILTER_KEY = "r"
 BACK_KEY = "escape"
 NO_FILES_MESSAGE = "No files indexed"
 ALL_ROOTS = "all roots"
-
-
-@pytest.fixture(name="services")
-def services_fixture(tmp_path):
-    return Services(Repositories(tmp_path / "acervus.db"))
-
-
-@pytest.fixture(name="app")
-def app_fixture(services):
-    return AcervusApp(services.roots, services.scan, services.files, services.marks)
 
 
 @pytest.fixture(name="trees")

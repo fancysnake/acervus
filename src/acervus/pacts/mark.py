@@ -55,10 +55,10 @@ class MarkRepositoryProtocol(Protocol):
     def create(self, name: str) -> MarkDTO:
         """Create a mark with this name and return it."""
 
-    def attach(self, file_id: int, mark_id: int) -> None:
+    def attach(self, file_id: int, *, mark_id: int) -> None:
         """Put this mark on this file, doing nothing if it is already there."""
 
-    def detach(self, file_id: int, mark_id: int) -> None:
+    def detach(self, file_id: int, *, mark_id: int) -> None:
         """Take this mark off this file, doing nothing if it is not there."""
 
     def count_files(self, mark_id: int) -> int:
@@ -77,8 +77,8 @@ class MarkServiceProtocol(Protocol):
     def list_for_file(self, file_id: int) -> list[MarkDTO]:
         """Return the marks this file carries."""
 
-    def add(self, file_id: int, name: str) -> MarkDTO:
+    def add(self, file_id: int, *, name: str) -> MarkDTO:
         """Put a mark of this name on this file, creating it if it is new."""
 
-    def remove(self, file_id: int, name: str) -> None:
+    def remove(self, file_id: int, *, name: str) -> None:
         """Take this mark off this file, dropping the mark if nothing carries it."""

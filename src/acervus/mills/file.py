@@ -38,6 +38,7 @@ class ScanService(ScanServiceProtocol):
 
     def __init__(
         self,
+        *,
         files: FileRepositoryProtocol,
         roots: RootRepositoryProtocol,
         filesystem: FilesystemReaderProtocol,

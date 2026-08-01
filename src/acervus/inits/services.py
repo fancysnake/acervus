@@ -9,6 +9,7 @@ from acervus.links.fs.pathlib import PathlibFilesystemReader
 from acervus.mills.file import FileService, ScanService
 from acervus.mills.mark import MarkService
 from acervus.mills.root import RootService
+from acervus.mills.stack import StackService
 
 if TYPE_CHECKING:
     from acervus.inits.repositories import Repositories
@@ -23,7 +24,9 @@ class Services:
     @cached_property
     def roots(self) -> RootService:
         """Return the root service."""
-        return RootService(self._repositories.roots, self._repositories.transaction)
+        return RootService(
+            roots=self._repositories.roots, transaction=self._repositories.transaction
+        )
 
     @cached_property
     def files(self) -> FileService:
@@ -33,14 +36,23 @@ class Services:
     @cached_property
     def marks(self) -> MarkService:
         """Return the mark service."""
-        return MarkService(self._repositories.marks, self._repositories.transaction)
+        return MarkService(
+            marks=self._repositories.marks, transaction=self._repositories.transaction
+        )
+
+    @cached_property
+    def stacks(self) -> StackService:
+        """Return the stack service."""
+        return StackService(
+            stacks=self._repositories.stacks, transaction=self._repositories.transaction
+        )
 
     @cached_property
     def scan(self) -> ScanService:
         """Return the scan service, reading the filesystem with pathlib."""
         return ScanService(
-            self._repositories.files,
-            self._repositories.roots,
-            PathlibFilesystemReader(),
-            self._repositories.transaction,
+            files=self._repositories.files,
+            roots=self._repositories.roots,
+            filesystem=PathlibFilesystemReader(),
+            transaction=self._repositories.transaction,
         )

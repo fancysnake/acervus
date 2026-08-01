@@ -25,7 +25,9 @@ class RootsScreen(Screen[None]):
 
     BINDINGS: ClassVar[list[BindingType]] = [("s", "scan", "Scan")]
 
-    def __init__(self, roots: RootServiceProtocol, scan: ScanServiceProtocol) -> None:
+    def __init__(
+        self, *, roots: RootServiceProtocol, scan: ScanServiceProtocol
+    ) -> None:
         super().__init__()
         self._roots = roots
         self._scan = scan
@@ -45,7 +47,9 @@ class RootsScreen(Screen[None]):
         if not self._listed:
             return
         rows = [(root.alias, str(root.path)) for root in self._listed]
-        fill_table(self.query_one("#roots", DataTable), ("Alias", "Path"), rows)
+        fill_table(
+            self.query_one("#roots", DataTable), columns=("Alias", "Path"), rows=rows
+        )
 
     def action_scan(self) -> None:
         """Scan the root under the cursor and report what changed."""

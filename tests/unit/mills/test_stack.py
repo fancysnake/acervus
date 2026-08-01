@@ -1,5 +1,9 @@
 """Tests for the stack service in mills."""
 
+# Pytest supplies fixtures by name, so a test taking three of them is not the
+# argument-order hazard the positional limit guards against.
+# pylint: disable=too-many-positional-arguments
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, Mock
@@ -40,7 +44,7 @@ def transaction_fixture():
 
 @pytest.fixture(name="service")
 def service_fixture(stacks, transaction):
-    return StackService(stacks, transaction)
+    return StackService(stacks=stacks, transaction=transaction)
 
 
 class TestListing:
@@ -69,38 +73,38 @@ class TestListing:
 class TestAdd:
     @staticmethod
     def test_it_puts_the_file_in_an_existing_stack(service, stacks):
-        assert service.add(FILE_ID, TRIP) == TRIP_STACK
+        assert service.add(FILE_ID, name=TRIP) == TRIP_STACK
 
         stacks.read_by_name.assert_called_once_with(TRIP)
         stacks.create.assert_not_called()
-        stacks.set_for_file.assert_called_once_with(FILE_ID, TRIP_STACK.id)
+        stacks.set_for_file.assert_called_once_with(FILE_ID, stack_id=TRIP_STACK.id)
 
     @staticmethod
     def test_it_creates_a_stack_the_index_lacks(service, stacks):
         stacks.read_by_name.side_effect = StackNotFoundError(TRIP)
         stacks.create.return_value = TRIP_STACK
 
-        assert service.add(FILE_ID, TRIP) == TRIP_STACK
+        assert service.add(FILE_ID, name=TRIP) == TRIP_STACK
 
         stacks.create.assert_called_once_with(TRIP)
 
     @staticmethod
     def test_it_cleans_the_name_first(service, stacks):
-        service.add(FILE_ID, "  iceland   trip ")
+        service.add(FILE_ID, name="  iceland   trip ")
 
         stacks.read_by_name.assert_called_once_with(TRIP)
 
     @staticmethod
     def test_a_bad_name_never_reaches_the_repository(service, stacks, transaction):
         with pytest.raises(InvalidStackNameError):
-            service.add(FILE_ID, "   ")
+            service.add(FILE_ID, name="   ")
 
         stacks.read_by_name.assert_not_called()
         transaction.atomic.assert_not_called()
 
     @staticmethod
     def test_it_writes_inside_one_transaction(service, transaction):
-        service.add(FILE_ID, TRIP)
+        service.add(FILE_ID, name=TRIP)
 
         transaction.atomic.assert_called_once_with()
         transaction.atomic.return_value.__enter__.assert_called_once_with()
@@ -112,17 +116,19 @@ class TestAddMoves:
     def test_a_file_leaves_the_stack_it_was_in(service, stacks):
         stacks.read_for_file.return_value = TAXES_STACK
 
-        service.add(FILE_ID, TRIP)
+        service.add(FILE_ID, name=TRIP)
 
-        assert stacks.set_for_file.call_args_list[0].args == (FILE_ID, None)
-        assert stacks.set_for_file.call_args_list[-1].args == (FILE_ID, TRIP_STACK.id)
+        assert stacks.set_for_file.call_args_list[0].kwargs == {"stack_id": None}
+        assert stacks.set_for_file.call_args_list[-1].kwargs == {
+            "stack_id": TRIP_STACK.id
+        }
 
     @staticmethod
     def test_the_stack_it_left_survives_if_others_remain(service, stacks):
         stacks.read_for_file.return_value = TAXES_STACK
         stacks.count_files.return_value = 3
 
-        service.add(FILE_ID, TRIP)
+        service.add(FILE_ID, name=TRIP)
 
         stacks.delete.assert_not_called()
 
@@ -131,7 +137,7 @@ class TestAddMoves:
         stacks.read_for_file.return_value = TAXES_STACK
         stacks.count_files.return_value = 0
 
-        service.add(FILE_ID, TRIP)
+        service.add(FILE_ID, name=TRIP)
 
         stacks.count_files.assert_called_once_with(TAXES_STACK.id)
         stacks.delete.assert_called_once_with(TAXES_STACK.id)
@@ -141,7 +147,7 @@ class TestAddMoves:
         stacks.read_for_file.return_value = TRIP_STACK
         stacks.count_files.return_value = 0
 
-        service.add(FILE_ID, TRIP)
+        service.add(FILE_ID, name=TRIP)
 
         stacks.delete.assert_not_called()
 
@@ -153,7 +159,7 @@ class TestRemove:
 
         service.remove(FILE_ID)
 
-        stacks.set_for_file.assert_called_once_with(FILE_ID, None)
+        stacks.set_for_file.assert_called_once_with(FILE_ID, stack_id=None)
 
     @staticmethod
     def test_a_loose_file_is_left_alone(service, stacks):

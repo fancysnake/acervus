@@ -16,7 +16,7 @@ class StackService(StackServiceProtocol):
     """Moves files between stacks, one stack at a time."""
 
     def __init__(
-        self, stacks: StackRepositoryProtocol, transaction: TransactionProtocol
+        self, *, stacks: StackRepositoryProtocol, transaction: TransactionProtocol
     ) -> None:
         self._stacks = stacks
         self._transaction = transaction
@@ -37,7 +37,7 @@ class StackService(StackServiceProtocol):
         """
         return self._stacks.read_for_file(file_id)
 
-    def add(self, file_id: int, name: str) -> StackDTO:
+    def add(self, file_id: int, *, name: str) -> StackDTO:
         """Move this file into the stack of this name.
 
         A file sits in at most one stack, so this moves rather than copies: the
@@ -52,8 +52,8 @@ class StackService(StackServiceProtocol):
                 stack = self._stacks.read_by_name(cleaned)
             except StackNotFoundError:
                 stack = self._stacks.create(cleaned)
-            self._drop_empty(self._leave(file_id, stack.id))
-            self._stacks.set_for_file(file_id, stack.id)
+            self._drop_empty(self._leave(file_id, joining=stack.id))
+            self._stacks.set_for_file(file_id, stack_id=stack.id)
             return stack
 
     def remove(self, file_id: int) -> None:
@@ -65,14 +65,14 @@ class StackService(StackServiceProtocol):
         with self._transaction.atomic():
             if (previous := self._stacks.read_for_file(file_id)) is None:
                 return
-            self._stacks.set_for_file(file_id, None)
+            self._stacks.set_for_file(file_id, stack_id=None)
             self._drop_empty(previous.id)
 
-    def _leave(self, file_id: int, joining: int) -> int | None:
+    def _leave(self, file_id: int, *, joining: int) -> int | None:
         previous = self._stacks.read_for_file(file_id)
         if previous is None or previous.id == joining:
             return None
-        self._stacks.set_for_file(file_id, None)
+        self._stacks.set_for_file(file_id, stack_id=None)
         return previous.id
 
     def _drop_empty(self, stack_id: int | None) -> None:

@@ -143,6 +143,14 @@ class FileRepository(FileRepositoryProtocol):
             statement = statement.where(
                 ~select(FileMark).where(FileMark.file_id == File.id).exists()
             )
+        if narrowed.stack is not None:
+            statement = statement.where(
+                select(Stack)
+                .where(Stack.id == File.stack_id, Stack.name == narrowed.stack)
+                .exists()
+            )
+        if narrowed.unstacked:
+            statement = statement.where(File.stack_id.is_(None))
         return [
             FileDTO.model_validate(record)
             for record in self._session.scalars(statement).all()
@@ -268,15 +276,15 @@ class MarkRepository(MarkRepositoryProtocol):
         self._session.flush()
         return MarkDTO.model_validate(record)
 
-    def attach(self, file_id: int, mark_id: int) -> None:
+    def attach(self, file_id: int, *, mark_id: int) -> None:
         """Put this mark on this file, doing nothing if it is already there."""
-        if self._link(file_id, mark_id) is None:
+        if self._link(file_id, mark_id=mark_id) is None:
             self._session.add(FileMark(file_id=file_id, mark_id=mark_id))
             self._session.flush()
 
-    def detach(self, file_id: int, mark_id: int) -> None:
+    def detach(self, file_id: int, *, mark_id: int) -> None:
         """Take this mark off this file, doing nothing if it is not there."""
-        if (link := self._link(file_id, mark_id)) is not None:
+        if (link := self._link(file_id, mark_id=mark_id)) is not None:
             self._session.delete(link)
             self._session.flush()
 
@@ -296,7 +304,7 @@ class MarkRepository(MarkRepositoryProtocol):
             self._session.delete(record)
         self._session.flush()
 
-    def _link(self, file_id: int, mark_id: int) -> FileMark | None:
+    def _link(self, file_id: int, *, mark_id: int) -> FileMark | None:
         return self._session.scalar(
             select(FileMark).where(
                 FileMark.file_id == file_id, FileMark.mark_id == mark_id
@@ -373,7 +381,7 @@ class StackRepository(StackRepositoryProtocol):
         self._session.flush()
         return StackDTO.model_validate(record)
 
-    def set_for_file(self, file_id: int, stack_id: int | None) -> None:
+    def set_for_file(self, file_id: int, *, stack_id: int | None) -> None:
         """Put this file in this stack, or take it out of any stack at ``None``."""
         if (record := self._session.get(File, file_id)) is not None:
             record.stack_id = stack_id

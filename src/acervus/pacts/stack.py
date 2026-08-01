@@ -55,7 +55,7 @@ class StackRepositoryProtocol(Protocol):
     def create(self, name: str) -> StackDTO:
         """Create a stack with this name and return it."""
 
-    def set_for_file(self, file_id: int, stack_id: int | None) -> None:
+    def set_for_file(self, file_id: int, *, stack_id: int | None) -> None:
         """Put this file in this stack, or take it out of any stack at ``None``."""
 
     def count_files(self, stack_id: int) -> int:
@@ -74,7 +74,7 @@ class StackServiceProtocol(Protocol):
     def for_file(self, file_id: int) -> StackDTO | None:
         """Return the stack this file sits in, if it sits in one."""
 
-    def add(self, file_id: int, name: str) -> StackDTO:
+    def add(self, file_id: int, *, name: str) -> StackDTO:
         """Move this file into the stack of this name, creating it if it is new."""
 
     def remove(self, file_id: int) -> None:

@@ -9,8 +9,10 @@ from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Static
 
 from acervus.gates.tui.textual.marks import MarkNamePrompt
+from acervus.gates.tui.textual.stacks import StackNamePrompt
 from acervus.pacts.file import FileFilter
 from acervus.pacts.mark import InvalidMarkNameError, MarkNotFoundError
+from acervus.pacts.stack import InvalidStackNameError
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -19,6 +21,7 @@ if TYPE_CHECKING:
     from acervus.pacts.file import FileDTO, FileServiceProtocol
     from acervus.pacts.mark import MarkServiceProtocol
     from acervus.pacts.root import RootDTO, RootServiceProtocol
+    from acervus.pacts.stack import StackServiceProtocol
 
 NO_FILES_MESSAGE = "No files indexed. Scan a root first."
 NO_MATCHES_MESSAGE = "No files match this filter."
@@ -33,6 +36,11 @@ MARKED = "Marked {path} {name}."
 TOOK_OFF = "Took {name} off {path}."
 CARRIES = "Marks: {names}"
 CARRIES_NONE = "Marks: none"
+STACK_PROMPT = "Stack to put it in:"
+SITS_IN = "Stack: {name}"
+SITS_LOOSE = "Stack: none"
+STACKED = "Put {path} in {name}."
+UNSTACKED = "Took {path} out of its stack."
 
 
 class FilesScreen(Screen[None]):
@@ -43,19 +51,24 @@ class FilesScreen(Screen[None]):
         ("k", "cycle_mark", "Filter by mark"),
         ("a", "add_mark", "Add mark"),
         ("x", "remove_mark", "Remove mark"),
+        ("s", "add_stack", "Put in stack"),
+        ("u", "remove_stack", "Take out of stack"),
         ("escape", "app.pop_screen", "Back"),
     ]
 
     def __init__(
         self,
+        *,
         roots: RootServiceProtocol,
         files: FileServiceProtocol,
         marks: MarkServiceProtocol,
+        stacks: StackServiceProtocol,
     ) -> None:
         super().__init__()
         self._roots = roots
         self._files = files
         self._marks = marks
+        self._stacks = stacks
         self._listed: list[RootDTO] = []
         self._shown: list[FileDTO] = []
         self._scope = FileFilter()
@@ -67,6 +80,7 @@ class FilesScreen(Screen[None]):
         yield DataTable(id="files")
         yield Static(NO_FILES_MESSAGE, id="no-files")
         yield Static(id="file-marks")
+        yield Static(id="file-stack")
         yield Static(id="mark-status")
         yield Footer()
 
@@ -114,12 +128,37 @@ class FilesScreen(Screen[None]):
         if self._under_cursor() is not None:
             self.app.push_screen(MarkNamePrompt(REMOVE_PROMPT), self._remove_mark)
 
+    def action_add_stack(self) -> None:
+        """Ask for a name and put the file under the cursor in that stack."""
+        if self._under_cursor() is not None:
+            self.app.push_screen(StackNamePrompt(STACK_PROMPT), self._add_stack)
+
+    def action_remove_stack(self) -> None:
+        """Take the file under the cursor out of whatever stack it sits in."""
+        if (file := self._under_cursor()) is None:
+            return
+        self._stacks.remove(file.id)
+        self._report(UNSTACKED.format(path=file.relative_path))
+        self._show_carried()
+
+    def _add_stack(self, name: str | None) -> None:
+        file = self._under_cursor()
+        if name is None or file is None:
+            return
+        try:
+            stack = self._stacks.add(file.id, name=name)
+        except InvalidStackNameError as error:
+            self._report(str(error))
+            return
+        self._report(STACKED.format(path=file.relative_path, name=stack.name))
+        self._show_carried()
+
     def _add_mark(self, name: str | None) -> None:
         file = self._under_cursor()
         if name is None or file is None:
             return
         try:
-            mark = self._marks.add(file.id, name)
+            mark = self._marks.add(file.id, name=name)
         except InvalidMarkNameError as error:
             self._report(str(error))
             return
@@ -131,7 +170,7 @@ class FilesScreen(Screen[None]):
         if name is None or file is None:
             return
         try:
-            self._marks.remove(file.id, name)
+            self._marks.remove(file.id, name=name)
         except (InvalidMarkNameError, MarkNotFoundError) as error:
             self._report(str(error))
             return
@@ -149,13 +188,17 @@ class FilesScreen(Screen[None]):
 
     def _show_carried(self) -> None:
         carried = self.query_one("#file-marks", Static)
+        sitting = self.query_one("#file-stack", Static)
         if (file := self._under_cursor()) is None:
             carried.update(CARRIES_NONE)
+            sitting.update(SITS_LOOSE)
             return
         names = [mark.name for mark in self._marks.list_for_file(file.id)]
         carried.update(
             CARRIES.format(names=", ".join(names)) if names else CARRIES_NONE
         )
+        stack = self._stacks.for_file(file.id)
+        sitting.update(SITS_LOOSE if stack is None else SITS_IN.format(name=stack.name))
 
     def _refresh(self) -> None:
         by_id = {root.id: root.alias for root in self._listed}
