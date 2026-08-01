@@ -1,10 +1,11 @@
 """Public surface of the SQLAlchemy database adapter.
 
-Models, the declarative base, and the engine stay internal — callers outside
-``links`` reach this adapter only through the repository protocols in
-``pacts``.
+Re-exports exactly what ``inits`` injects into services, each of it named by a
+protocol in ``pacts``. Models, the declarative base, the engine and the session
+stay internal.
 """
 
 from acervus.links.db.sqlalchemy.repositories import FileRepository, RootRepository
+from acervus.links.db.sqlalchemy.transaction import SessionTransaction
 
-__all__ = ["FileRepository", "RootRepository"]
+__all__ = ["FileRepository", "RootRepository", "SessionTransaction"]
