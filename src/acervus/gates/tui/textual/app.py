@@ -4,39 +4,29 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from textual.app import App, ComposeResult
-from textual.widgets import DataTable, Footer, Header, Static
+from textual.app import App
+
+from acervus.gates.tui.textual.roots import RootsScreen
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from textual.binding import BindingType
+
+    from acervus.pacts.root import RootServiceProtocol
 
 
 class AcervusApp(App[None]):
-    """Interactive browser for configured roots."""
+    """Interactive browser for the indexed roots.
+
+    Takes the service protocols its screens need and nothing more — no
+    container and no configuration cross this boundary.
+    """
 
     TITLE = "Acervus"
     BINDINGS: ClassVar[list[BindingType]] = [("q", "quit", "Quit")]
 
-    def __init__(self, db_path: Path, roots: dict[str, Path]) -> None:
+    def __init__(self, roots: RootServiceProtocol) -> None:
         super().__init__()
-        self._db_path = db_path
         self._roots = roots
 
-    def compose(self) -> ComposeResult:
-        yield Header()
-        yield Static(f"Database: {self._db_path}", id="db-path")
-        if self._roots:
-            yield DataTable(id="roots")
-        else:
-            yield Static("No roots configured.", id="no-roots")
-        yield Footer()
-
-    def on_mount(self) -> None:
-        if not self._roots:
-            return
-        table = self.query_one("#roots", DataTable)
-        table.add_columns("Alias", "Path")
-        for alias, path in self._roots.items():
-            table.add_row(alias, str(path))
+    def get_default_screen(self) -> RootsScreen:
+        return RootsScreen(self._roots)

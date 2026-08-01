@@ -1,4 +1,4 @@
-"""Application entry point — loads config and launches the Textual app."""
+"""Application entry point — loads config, builds the container, runs the TUI."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ import sys
 
 from acervus.gates.tui.textual.app import AcervusApp
 from acervus.inits.config import load_config
+from acervus.inits.repositories import Repositories
+from acervus.inits.services import Services
 
 NO_CONFIG_MESSAGE = (
     "No config found. Create ~/.config/acervus/config.toml"
@@ -14,8 +16,10 @@ NO_CONFIG_MESSAGE = (
 
 
 def main() -> None:
-    """Load config and run the Acervus TUI, or exit if no config exists."""
+    """Load config, reconcile the roots it names, and run the Acervus TUI."""
     if (config := load_config()) is None:
         sys.stderr.write(NO_CONFIG_MESSAGE)
         sys.exit(1)
-    AcervusApp(db_path=config.db_path, roots=config.roots).run()
+    services = Services(Repositories(config.db_path))
+    services.roots.sync(config.roots)
+    AcervusApp(services.roots).run()
