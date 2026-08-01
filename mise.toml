@@ -29,4 +29,3 @@ run = [
     { task = "test:py:cov:diff" },
     { task = "lint:tingle" },
 ]
-

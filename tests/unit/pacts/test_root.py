@@ -24,7 +24,7 @@ class TestRootDTO:
     @staticmethod
     def test_path_coerced_from_string() -> None:
         root = RootDTO.model_validate(
-            {"id": 1, "alias": DOCS, "path": "/home/user/docs"},
+            {"id": 1, "alias": DOCS, "path": "/home/user/docs"}
         )
 
         assert root.path == Path("/home/user/docs")

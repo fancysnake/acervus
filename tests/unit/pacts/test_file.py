@@ -16,7 +16,7 @@ class TestFileDTO:
     @staticmethod
     def test_valid() -> None:
         file = FileDTO(
-            id=1, root_id=2, relative_path=Path("notes/todo.md"), size=12, mtime=MTIME,
+            id=1, root_id=2, relative_path=Path("notes/todo.md"), size=12, mtime=MTIME
         )
 
         assert file.relative_path == Path("notes/todo.md")
@@ -26,7 +26,7 @@ class TestFileDTO:
     @staticmethod
     def test_from_attributes() -> None:
         record = SimpleNamespace(
-            id=1, root_id=2, relative_path="notes/todo.md", size=12, mtime=MTIME,
+            id=1, root_id=2, relative_path="notes/todo.md", size=12, mtime=MTIME
         )
 
         file = FileDTO.model_validate(record)
@@ -37,9 +37,7 @@ class TestFileDTO:
     @staticmethod
     def test_missing_root_id_raises() -> None:
         with pytest.raises(ValidationError):
-            FileDTO(
-                id=1, relative_path=Path("a.txt"), size=1, mtime=1.0,
-            )
+            FileDTO(id=1, relative_path=Path("a.txt"), size=1, mtime=1.0)
 
 
 class TestScanResult:
