@@ -12,6 +12,7 @@ from acervus.links.db.sqlalchemy import (
     MarkRepository,
     RootRepository,
     SessionTransaction,
+    StackRepository,
 )
 from acervus.links.db.sqlalchemy.engine import create_engine_from_path, init_db
 
@@ -51,6 +52,11 @@ class Repositories:
     def marks(self) -> MarkRepository:
         """Return the mark repository."""
         return MarkRepository(self.session)
+
+    @cached_property
+    def stacks(self) -> StackRepository:
+        """Return the stack repository."""
+        return StackRepository(self.session)
 
     @cached_property
     def transaction(self) -> SessionTransaction:

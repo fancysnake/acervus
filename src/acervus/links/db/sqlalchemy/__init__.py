@@ -9,7 +9,14 @@ from acervus.links.db.sqlalchemy.repositories import (
     FileRepository,
     MarkRepository,
     RootRepository,
+    StackRepository,
 )
 from acervus.links.db.sqlalchemy.transaction import SessionTransaction
 
-__all__ = ["FileRepository", "MarkRepository", "RootRepository", "SessionTransaction"]
+__all__ = [
+    "FileRepository",
+    "MarkRepository",
+    "RootRepository",
+    "SessionTransaction",
+    "StackRepository",
+]
