@@ -22,4 +22,4 @@ def main() -> None:
         sys.exit(1)
     services = Services(Repositories(config.db_path))
     services.roots.sync(config.roots)
-    AcervusApp(services.roots, services.scan, services.files).run()
+    AcervusApp(services.roots, services.scan, services.files, services.marks).run()

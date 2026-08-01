@@ -35,7 +35,7 @@ def services_fixture(tmp_path):
 
 @pytest.fixture(name="app")
 def app_fixture(services):
-    return AcervusApp(services.roots, services.scan, services.files)
+    return AcervusApp(services.roots, services.scan, services.files, services.marks)
 
 
 @pytest.fixture(name="trees")

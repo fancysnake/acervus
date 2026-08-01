@@ -183,7 +183,7 @@ forbidden_modules = [
 name = "inits"
 type = "forbidden"
 source_modules = ["acervus.inits"]
-forbidden_modules = ["acervus.specs", "acervus.edges"]
+forbidden_modules = ["acervus.edges"]
 
 
 [[tool.importlinter.contracts]]

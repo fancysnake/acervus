@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from acervus.links.fs.pathlib import PathlibFilesystemReader
 from acervus.mills.file import FileService, ScanService
+from acervus.mills.mark import MarkService
 from acervus.mills.root import RootService
 
 if TYPE_CHECKING:
@@ -28,6 +29,11 @@ class Services:
     def files(self) -> FileService:
         """Return the file service."""
         return FileService(self._repositories.files)
+
+    @cached_property
+    def marks(self) -> MarkService:
+        """Return the mark service."""
+        return MarkService(self._repositories.marks, self._repositories.transaction)
 
     @cached_property
     def scan(self) -> ScanService:

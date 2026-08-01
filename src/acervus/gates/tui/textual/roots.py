@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, ClassVar
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Static
 
+from acervus.gates.tui.textual.table import fill_table
+
 if TYPE_CHECKING:
     from textual.app import ComposeResult
     from textual.binding import BindingType
@@ -42,11 +44,8 @@ class RootsScreen(Screen[None]):
     def on_mount(self) -> None:
         if not self._listed:
             return
-        table = self.query_one("#roots", DataTable)
-        table.cursor_type = "row"
-        table.add_columns("Alias", "Path")
-        for root in self._listed:
-            table.add_row(root.alias, str(root.path))
+        rows = [(root.alias, str(root.path)) for root in self._listed]
+        fill_table(self.query_one("#roots", DataTable), ("Alias", "Path"), rows)
 
     def action_scan(self) -> None:
         """Scan the root under the cursor and report what changed."""

@@ -7,12 +7,14 @@ from typing import TYPE_CHECKING, ClassVar
 from textual.app import App
 
 from acervus.gates.tui.textual.files import FilesScreen
+from acervus.gates.tui.textual.marks import MarksScreen
 from acervus.gates.tui.textual.roots import RootsScreen
 
 if TYPE_CHECKING:
     from textual.binding import BindingType
 
     from acervus.pacts.file import FileServiceProtocol, ScanServiceProtocol
+    from acervus.pacts.mark import MarkServiceProtocol
     from acervus.pacts.root import RootServiceProtocol
 
 
@@ -26,6 +28,7 @@ class AcervusApp(App[None]):
     TITLE = "Acervus"
     BINDINGS: ClassVar[list[BindingType]] = [
         ("f", "files", "Files"),
+        ("m", "marks", "Marks"),
         ("q", "quit", "Quit"),
     ]
 
@@ -34,15 +37,21 @@ class AcervusApp(App[None]):
         roots: RootServiceProtocol,
         scan: ScanServiceProtocol,
         files: FileServiceProtocol,
+        marks: MarkServiceProtocol,
     ) -> None:
         super().__init__()
         self._roots = roots
         self._scan = scan
         self._files = files
+        self._marks = marks
 
     def get_default_screen(self) -> RootsScreen:
         return RootsScreen(self._roots, self._scan)
 
     async def action_files(self) -> None:
         """Open the files screen, waiting for it to mount."""
-        await self.push_screen(FilesScreen(self._roots, self._files))
+        await self.push_screen(FilesScreen(self._roots, self._files, self._marks))
+
+    async def action_marks(self) -> None:
+        """Open the marks screen, waiting for it to mount."""
+        await self.push_screen(MarksScreen(self._marks))

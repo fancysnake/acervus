@@ -22,7 +22,7 @@ Architecture: GLIMPSE layering, SQLAlchemy + SQLite, a Textual TUI. Entry point
 | mills | pacts, specs | gates, links, inits, edges |
 | links | pacts | gates, inits, mills, specs, edges |
 | gates | pacts | links, inits, mills, specs, edges |
-| inits | pacts, mills, links, gates | specs, edges |
+| inits | pacts, specs, mills, links, gates | edges |
 | edges | nothing | everything |
 
 Three constraints do the load-bearing work.
@@ -35,8 +35,13 @@ protocols in `pacts` and receive concrete implementations by injection. A screen
 declares the service protocols it uses; a repository declares the repository
 protocol it satisfies. Nothing at the edge names a concrete service.
 
-**`specs` is reachable from `mills` alone** — it holds pure business invariants,
-nothing else.
+**`specs` is for `mills` to call** — it holds pure business invariants, nothing
+else. `inits` was forbidden from importing it until Step 12, when that turned
+out to be unsatisfiable: the contracts count indirect chains, so wiring a
+service that validates through `specs` makes `inits → mills → specs` reachable.
+Forbidding it would forbid `specs` from being used at all, so the `inits`
+contract now lists only `acervus.edges`. Nothing in `inits` should name a
+`specs` module directly.
 
 Seven `inside-*` independence contracts sit on top of these. The one with teeth
 is `inside-pacts` / `inside-mills`: **sibling modules inside `pacts` and inside
