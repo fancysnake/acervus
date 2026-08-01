@@ -5,7 +5,11 @@ protocol in ``pacts``. Models, the declarative base, the engine and the session
 stay internal.
 """
 
-from acervus.links.db.sqlalchemy.repositories import FileRepository, RootRepository
+from acervus.links.db.sqlalchemy.repositories import (
+    FileRepository,
+    MarkRepository,
+    RootRepository,
+)
 from acervus.links.db.sqlalchemy.transaction import SessionTransaction
 
-__all__ = ["FileRepository", "RootRepository", "SessionTransaction"]
+__all__ = ["FileRepository", "MarkRepository", "RootRepository", "SessionTransaction"]

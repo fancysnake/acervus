@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from acervus.links.db.sqlalchemy import (
     FileRepository,
+    MarkRepository,
     RootRepository,
     SessionTransaction,
 )
@@ -45,6 +46,11 @@ class Repositories:
     def files(self) -> FileRepository:
         """Return the file repository."""
         return FileRepository(self.session)
+
+    @cached_property
+    def marks(self) -> MarkRepository:
+        """Return the mark repository."""
+        return MarkRepository(self.session)
 
     @cached_property
     def transaction(self) -> SessionTransaction:
