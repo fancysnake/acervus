@@ -21,6 +21,13 @@ TAKE_KEY = "u"
 BACK_KEY = "escape"
 DOWN_KEY = "down"
 SUBMIT_KEY = "enter"
+ADD_KEY = "a"
+INVOICE = "invoice"
+MARK_FILTER_KEY = "k"
+STACK_FILTER_KEY = "c"
+ANY_STACK = "any stack"
+UNSTACKED_ONLY = "unstacked"
+NO_MATCHES_MESSAGE = "No files match this filter"
 NO_STACKS_MESSAGE = "No stacks yet"
 SITS_LOOSE = "Stack: none"
 EMPTY_NAME = "   "
@@ -222,3 +229,92 @@ class TestStacksScreen:
                 TRIP,
                 TAXES,
             ]
+
+
+class TestFilteringByStack:
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_it_starts_showing_any_stack(app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert ANY_STACK in str(label.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_it_narrows_to_the_files_in_the_stack(app):
+        async with app.run_test() as pilot:
+            await stack_first(pilot)
+            await pilot.press(STACK_FILTER_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert table.row_count == 1
+            assert table.get_row_at(0)[1] == INBOX
+            assert TRIP in str(label.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_the_next_step_is_the_unstacked_view(app):
+        async with app.run_test() as pilot:
+            await stack_first(pilot)
+            await pilot.press(STACK_FILTER_KEY, STACK_FILTER_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert table.row_count == 1
+            assert table.get_row_at(0)[1] == NOTES
+            assert UNSTACKED_ONLY in str(label.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_it_wraps_back_to_any_stack(app):
+        async with app.run_test() as pilot:
+            await stack_first(pilot)
+            for _ in range(1 + 2):  # the stack, unstacked, then back round
+                await pilot.press(STACK_FILTER_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert table.row_count == 1 + 1  # both files again
+            assert ANY_STACK in str(label.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_with_nothing_stacked_it_steps_straight_to_unstacked(app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, STACK_FILTER_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert table.row_count == 1 + 1  # neither file sits in a stack
+            assert UNSTACKED_ONLY in str(label.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_a_filter_matching_nothing_says_so(app):
+        async with app.run_test() as pilot:
+            await stack_first(pilot)
+            await pilot.press(DOWN_KEY, PUT_KEY)
+            await type_name(pilot, TRIP)
+            await pilot.press(STACK_FILTER_KEY, STACK_FILTER_KEY)
+            message = pilot.app.screen.query_one("#no-files", Static)
+
+            assert message.display
+            assert NO_MATCHES_MESSAGE in str(message.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_the_stack_and_mark_filters_combine(app):
+        async with app.run_test() as pilot:
+            await stack_first(pilot)
+            await pilot.press(ADD_KEY)
+            await type_name(pilot, INVOICE)
+            await pilot.press(DOWN_KEY, PUT_KEY)
+            await type_name(pilot, TRIP)
+            await pilot.press(STACK_FILTER_KEY, MARK_FILTER_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.row_count == 1  # in the stack and carrying the mark
+            assert table.get_row_at(0)[1] == INBOX

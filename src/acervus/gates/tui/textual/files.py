@@ -15,6 +15,8 @@ from acervus.pacts.mark import InvalidMarkNameError, MarkNotFoundError
 from acervus.pacts.stack import InvalidStackNameError
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from textual.app import ComposeResult
     from textual.binding import BindingType
 
@@ -28,7 +30,9 @@ NO_MATCHES_MESSAGE = "No files match this filter."
 ALL_ROOTS = "all roots"
 ANY_MARK = "any mark"
 UNMARKED = "unmarked"
-FILTER_LABEL = "Showing: {roots}, {marks}"
+ANY_STACK = "any stack"
+UNSTACKED_ONLY = "unstacked"
+FILTER_LABEL = "Showing: {roots}, {marks}, {stacks}"
 UNKNOWN_ALIAS = "?"
 ADD_PROMPT = "Mark to add:"
 REMOVE_PROMPT = "Mark to remove:"
@@ -40,15 +44,20 @@ STACK_PROMPT = "Stack to put it in:"
 SITS_IN = "Stack: {name}"
 SITS_LOOSE = "Stack: none"
 STACKED = "Put {path} in {name}."
-UNSTACKED = "Took {path} out of its stack."
+TOOK_OUT = "Took {path} out of its stack."
+
+# One stop on a filter cycle: a name to match, or the bare-only flag.
+Narrowing = tuple[str | None, bool]
 
 
 class FilesScreen(Screen[None]):
     """Shows indexed files, filterable by root, and marks the one under the cursor."""
 
     BINDINGS: ClassVar[list[BindingType]] = [
+        # The filter keys take a consonant from the noun: mar(k), sta(c)k.
         ("r", "cycle_filter", "Filter by root"),
         ("k", "cycle_mark", "Filter by mark"),
+        ("c", "cycle_stack", "Filter by stack"),
         ("a", "add_mark", "Add mark"),
         ("x", "remove_mark", "Remove mark"),
         ("s", "add_stack", "Put in stack"),
@@ -107,16 +116,39 @@ class FilesScreen(Screen[None]):
 
     def action_cycle_mark(self) -> None:
         """Step the mark filter on: any mark, then each mark, then unmarked."""
-        steps: list[tuple[str | None, bool]] = [
-            (None, False),
-            *((mark.name, False) for mark in self._marks.list_all()),
-            (None, True),
-        ]
-        current = (self._scope.mark, self._scope.unmarked)
-        standing = steps.index(current) if current in steps else 0
-        mark, unmarked = steps[(standing + 1) % len(steps)]
+        steps = self._steps(mark.name for mark in self._marks.list_all())
+        mark, unmarked = self._next(steps, (self._scope.mark, self._scope.unmarked))
         self._scope = replace(self._scope, mark=mark, unmarked=unmarked)
         self._refresh()
+
+    def action_cycle_stack(self) -> None:
+        """Step the stack filter on: any stack, then each stack, then unstacked."""
+        steps = self._steps(stack.name for stack in self._stacks.list_all())
+        stack, unstacked = self._next(steps, (self._scope.stack, self._scope.unstacked))
+        self._scope = replace(self._scope, stack=stack, unstacked=unstacked)
+        self._refresh()
+
+    @staticmethod
+    def _steps(names: Iterable[str]) -> list[Narrowing]:
+        """Return the cycle: everything, then each name, then only the bare ones.
+
+        Returns:
+            One step per stop, starting at the unfiltered one.
+        """
+        return [(None, False), *((name, False) for name in names), (None, True)]
+
+    @staticmethod
+    def _next(steps: list[Narrowing], current: Narrowing) -> Narrowing:
+        """Return the step after this one, wrapping round at the end.
+
+        A filter whose name has since been deleted is not in the cycle at all,
+        so it restarts rather than raising.
+
+        Returns:
+            The step to move to.
+        """
+        standing = steps.index(current) if current in steps else 0
+        return steps[(standing + 1) % len(steps)]
 
     def action_add_mark(self) -> None:
         """Ask for a name and put that mark on the file under the cursor."""
@@ -138,7 +170,7 @@ class FilesScreen(Screen[None]):
         if (file := self._under_cursor()) is None:
             return
         self._stacks.remove(file.id)
-        self._report(UNSTACKED.format(path=file.relative_path))
+        self._report(TOOK_OUT.format(path=file.relative_path))
         self._show_carried()
 
     def _add_stack(self, name: str | None) -> None:
@@ -224,6 +256,7 @@ class FilesScreen(Screen[None]):
             FILTER_LABEL.format(
                 roots=ALL_ROOTS if root_id is None else by_id[root_id],
                 marks=self._mark_scope(),
+                stacks=self._stack_scope(),
             )
         )
         self._show_carried()
@@ -232,3 +265,8 @@ class FilesScreen(Screen[None]):
         if self._scope.unmarked:
             return UNMARKED
         return ANY_MARK if self._scope.mark is None else self._scope.mark
+
+    def _stack_scope(self) -> str:
+        if self._scope.unstacked:
+            return UNSTACKED_ONLY
+        return ANY_STACK if self._scope.stack is None else self._scope.stack
