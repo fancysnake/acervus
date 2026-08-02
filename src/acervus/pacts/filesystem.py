@@ -1,7 +1,5 @@
 """Boundary contracts for the filesystem port."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 

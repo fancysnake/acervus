@@ -1,7 +1,5 @@
 """The stacks screen, and the prompt used to name a stack."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, ClassVar
 
 from textual.screen import ModalScreen, Screen

@@ -1,7 +1,5 @@
 """Database engine creation and initialization."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from sqlalchemy import create_engine

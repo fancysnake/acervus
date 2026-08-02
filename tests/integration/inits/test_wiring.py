@@ -1,7 +1,6 @@
 """Tests for the containers in inits, against a real database."""
 
-from __future__ import annotations
-
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -28,7 +27,8 @@ def db_path_fixture(tmp_path):
 
 @pytest.fixture(name="repositories")
 def repositories_fixture(db_path):
-    return Repositories(db_path)
+    with closing(Repositories(db_path)) as repositories:
+        yield repositories
 
 
 @pytest.fixture(name="services")
@@ -86,10 +86,11 @@ class TestServices:
         synced = services.roots.sync({NOTES: NOTES_PATH, ARCHIVE: ARCHIVE_PATH})
 
         assert [root.alias for root in synced] == [ARCHIVE, NOTES]
-        assert [root.alias for root in Repositories(db_path).roots.list_all()] == [
-            ARCHIVE,
-            NOTES,
-        ]
+        with closing(Repositories(db_path)) as reopened:
+            assert [root.alias for root in reopened.roots.list_all()] == [
+                ARCHIVE,
+                NOTES,
+            ]
 
     @staticmethod
     def test_sync_drops_a_root_the_config_no_longer_names(db_path, services):
@@ -97,6 +98,5 @@ class TestServices:
 
         services.roots.sync({NOTES: NOTES_PATH})
 
-        assert [root.alias for root in Repositories(db_path).roots.list_all()] == [
-            NOTES
-        ]
+        with closing(Repositories(db_path)) as reopened:
+            assert [root.alias for root in reopened.roots.list_all()] == [NOTES]

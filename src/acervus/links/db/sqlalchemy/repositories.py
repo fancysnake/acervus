@@ -1,7 +1,5 @@
 """Repositories backing the pacts protocols with SQLAlchemy."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from sqlalchemy import delete, select
@@ -52,20 +50,6 @@ class RootRepository(RootRepositoryProtocol):
         """
         records = self._session.scalars(select(Root).order_by(Root.alias)).all()
         return [RootDTO.model_validate(record) for record in records]
-
-    def read(self, root_id: int) -> RootDTO:
-        """Return the root with this id.
-
-        Returns:
-            The root holding this id.
-
-        Raises:
-            RootNotFoundError: No root has this id.
-        """
-        if (record := self._session.get(Root, root_id)) is None:
-            message = f"No root has id {root_id}."
-            raise RootNotFoundError(message)
-        return RootDTO.model_validate(record)
 
     def read_by_alias(self, alias: str) -> RootDTO:
         """Return the root with this alias.

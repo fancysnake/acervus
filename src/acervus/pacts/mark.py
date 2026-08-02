@@ -1,9 +1,7 @@
 """Boundary contracts for the mark noun."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
-from typing import Protocol, TypedDict
+from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
 
@@ -22,12 +20,6 @@ class MarkDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    name: str
-
-
-class MarkWrite(TypedDict):
-    """The fields needed to create a mark."""
-
     name: str
 
 

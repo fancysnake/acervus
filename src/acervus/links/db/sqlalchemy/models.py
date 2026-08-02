@@ -1,7 +1,5 @@
 """SQLAlchemy models for Acervus."""
 
-from __future__ import annotations
-
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 

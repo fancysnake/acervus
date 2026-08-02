@@ -1,7 +1,5 @@
 """Business operations on roots."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from acervus.pacts.root import RootServiceProtocol, RootWrite

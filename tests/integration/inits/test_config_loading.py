@@ -1,7 +1,5 @@
 """Tests for config loading in inits."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from acervus.inits.config import load_config

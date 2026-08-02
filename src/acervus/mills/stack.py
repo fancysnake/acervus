@@ -1,7 +1,5 @@
 """Business operations on stacks."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from acervus.pacts.stack import StackNotFoundError, StackServiceProtocol

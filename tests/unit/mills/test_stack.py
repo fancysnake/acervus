@@ -4,7 +4,6 @@
 # argument-order hazard the positional limit guards against.
 # pylint: disable=too-many-positional-arguments
 
-from __future__ import annotations
 
 from unittest.mock import MagicMock, Mock
 

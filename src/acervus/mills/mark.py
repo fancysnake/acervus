@@ -1,7 +1,5 @@
 """Business operations on marks."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from acervus.pacts.mark import MarkNotFoundError, MarkServiceProtocol

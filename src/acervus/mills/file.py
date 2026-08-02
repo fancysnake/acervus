@@ -1,7 +1,5 @@
 """Business operations that reconcile the index against the filesystem."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from acervus.pacts.file import (

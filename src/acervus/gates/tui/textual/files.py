@@ -1,7 +1,5 @@
 """The files screen — lists the files Acervus has indexed, and marks them."""
 
-from __future__ import annotations
-
 from dataclasses import replace
 from typing import TYPE_CHECKING, ClassVar
 

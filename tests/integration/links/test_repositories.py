@@ -4,7 +4,6 @@
 # argument-order hazard the positional limit guards against.
 # pylint: disable=too-many-positional-arguments
 
-from __future__ import annotations
 
 from pathlib import Path
 
@@ -128,20 +127,6 @@ class TestRootRepository:
     @staticmethod
     def test_list_all_is_empty_before_any_write(roots):
         assert roots.list_all() == []
-
-    @staticmethod
-    def test_read(roots):
-        written = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])
-
-        found = roots.read(written[0].id)
-
-        assert found.alias == DOCS
-        assert found.path == DOCS_PATH
-
-    @staticmethod
-    def test_read_missing_raises(roots):
-        with pytest.raises(RootNotFoundError):
-            roots.read(UNKNOWN_ID)
 
     @staticmethod
     def test_read_by_alias(roots):

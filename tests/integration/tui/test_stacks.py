@@ -5,8 +5,6 @@ stacks screen, both of which are pushed, so queries go through
 ``pilot.app.screen``.
 """
 
-from __future__ import annotations
-
 import pytest
 from textual.widgets import DataTable, Static
 

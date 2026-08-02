@@ -1,7 +1,5 @@
 """Invariants a mark name must hold."""
 
-from __future__ import annotations
-
 from acervus.pacts.mark import InvalidMarkNameError
 
 MAX_NAME_LENGTH = 64

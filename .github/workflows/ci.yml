@@ -11,14 +11,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.14"]
     env:
       MISE_PYTHON_VERSION: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v4
       - run: mise exec -- poetry install
-      - run: mise test:py:cov
+      - run: mise run test:py:cov
       - name: Upload Python coverage to Codecov
         uses: codecov/codecov-action@v5
         if: success()
@@ -26,14 +26,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           flags: python
-          disable_search: true
-      - name: Upload client coverage to Codecov
-        uses: codecov/codecov-action@v5
-        if: success()
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage-client/lcov.info
-          flags: client
           disable_search: true
 
   quality:

@@ -93,7 +93,7 @@ implicit_reexport = true
 mypy_path = "src"
 plugins = ["pydantic.mypy"]
 pretty = true
-python_version = "3.11"
+python_version = "3.14"
 strict = true
 strict_equality = true
 strict_equality_for_none = true
@@ -262,3 +262,16 @@ modules = ["acervus.specs.*"]
 name = "inside-edges"
 type = "independence"
 modules = ["acervus.edges.*"]
+
+# Vulture
+
+[tool.vulture]
+ignore_names = [
+    "on_*",
+    "action_*",
+    "compose",
+    "get_default_screen",
+    "cursor_type",
+    "display",
+    "main",
+]

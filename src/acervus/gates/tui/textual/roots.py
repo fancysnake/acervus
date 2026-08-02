@@ -1,7 +1,5 @@
 """The roots screen — lists the roots Acervus has indexed, and scans them."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, ClassVar
 
 from textual.screen import Screen

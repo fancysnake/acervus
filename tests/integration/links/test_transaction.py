@@ -1,7 +1,5 @@
 """Tests for the SQLAlchemy transaction adapter, against a real database."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest

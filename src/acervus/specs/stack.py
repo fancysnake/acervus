@@ -1,7 +1,5 @@
 """Invariants a stack name must hold."""
 
-from __future__ import annotations
-
 from acervus.pacts.stack import InvalidStackNameError
 
 MAX_NAME_LENGTH = 255

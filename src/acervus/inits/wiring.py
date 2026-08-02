@@ -1,8 +1,7 @@
 """Application entry point — loads config, builds the container, runs the TUI."""
 
-from __future__ import annotations
-
 import sys
+from contextlib import closing
 
 from acervus.gates.tui.textual.app import AcervusApp
 from acervus.inits.config import load_config
@@ -35,6 +34,7 @@ def main() -> None:
     if (config := load_config()) is None:
         sys.stderr.write(NO_CONFIG_MESSAGE)
         sys.exit(1)
-    services = Services(Repositories(config.db_path))
-    services.roots.sync(config.roots)
-    build_app(services).run()
+    with closing(Repositories(config.db_path)) as repositories:
+        services = Services(repositories)
+        services.roots.sync(config.roots)
+        build_app(services).run()

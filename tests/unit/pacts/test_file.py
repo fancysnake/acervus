@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from acervus.pacts.file import FileDTO, FileMissingError, ScanResult
+from acervus.pacts.file import FileDTO, ScanResult
 
 MTIME = 1.5
 
@@ -55,10 +55,3 @@ class TestScanResult:
 
         with pytest.raises(dataclasses.FrozenInstanceError):
             result.added = 1
-
-
-class TestFileMissingError:
-    @staticmethod
-    def test_is_an_exception() -> None:
-        with pytest.raises(FileMissingError):
-            raise FileMissingError(FileMissingError.__doc__)

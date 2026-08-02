@@ -1,6 +1,6 @@
 """Shared container and app fixtures for the TUI integration tests."""
 
-from __future__ import annotations
+from contextlib import closing
 
 import pytest
 
@@ -16,7 +16,8 @@ CONTENT = "hello"
 
 @pytest.fixture(name="repositories")
 def repositories_fixture(tmp_path):
-    return Repositories(tmp_path / "acervus.db")
+    with closing(Repositories(tmp_path / "acervus.db")) as repositories:
+        yield repositories
 
 
 @pytest.fixture(name="services")

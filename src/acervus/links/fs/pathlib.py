@@ -1,7 +1,5 @@
 """Reading a directory tree with the standard library."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from acervus.pacts.filesystem import FileInfo, FilesystemReaderProtocol

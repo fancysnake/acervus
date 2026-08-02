@@ -1,7 +1,5 @@
 """Boundary contracts for the root noun."""
 
-from __future__ import annotations
-
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, TypedDict
 
@@ -37,9 +35,6 @@ class RootRepositoryProtocol(Protocol):
 
     def list_all(self) -> list[RootDTO]:
         """Return every root in the index, ordered by alias."""
-
-    def read(self, root_id: int) -> RootDTO:
-        """Return the root with this id, or raise ``RootNotFoundError``."""
 
     def read_by_alias(self, alias: str) -> RootDTO:
         """Return the root with this alias, or raise ``RootNotFoundError``."""

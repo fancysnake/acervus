@@ -1,7 +1,5 @@
 """Boundary contracts for the file noun."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, TypedDict
@@ -10,10 +8,6 @@ from pydantic import BaseModel, ConfigDict
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-
-
-class FileMissingError(Exception):
-    """No file matches the requested identifier."""
 
 
 class FileDTO(BaseModel):
