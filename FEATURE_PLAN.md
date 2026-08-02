@@ -1,5 +1,10 @@
 # Acervus MVP Plan
 
+> **Status: complete.** Every one of the 16 steps below is done, through
+> "Step 16: TUI — filter files by stack". This document is kept as a record of
+> how the MVP was built and why each boundary sits where it does; it is not a
+> to-do list. New work does not belong here.
+
 ## Context
 
 Acervus is a filesystem tagging tool (like TMSU). It indexes files under named

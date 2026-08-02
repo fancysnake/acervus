@@ -1,1 +1,1 @@
-"""Specs — business invariants for mills. Empty until the first one exists."""
+"""Specs — pure business invariants: the mark and stack name rules."""

@@ -12,9 +12,11 @@ Python 3.14, Poetry for dependencies, mise for tooling and tasks.
 
 ## State of the repo
 
-The project is an early MVP. The entry point is `acervus.inits.wiring:main` (`pyproject.toml`), which loads config and launches a **Textual TUI** (`acervus.gates.tui.textual.app.AcervusApp`). Click is not a dependency; `textual` is.
+The MVP is complete. The entry point is `acervus.inits.wiring:main` (`pyproject.toml`), which loads config, reconciles the configured roots against the index, and launches a **Textual TUI** (`acervus.gates.tui.textual.app.AcervusApp`). Click is not a dependency; `textual` is.
 
-What exists today: `pacts/config.py` (`AcervusConfig`), `inits/config.py` (`load_config`), `inits/wiring.py` (`main`), `links/db/sqlalchemy/{models,engine}.py`, and the TUI shell. What does not: `mills/` and `specs/` are empty, there are no repositories, no protocols, and no DI container — the TUI still receives `db_path`/`roots` directly instead of a services container. `FEATURE_PLAN.md` is the plan for closing that gap and is current.
+Every layer but `edges` is populated. `pacts` holds the contracts for four nouns (`root`, `file`, `mark`, `stack`) alongside the `config`, `transaction` and `filesystem` ports. `specs` holds the mark and stack name invariants. `mills` holds five services — `RootService`, `FileService`, `ScanService`, `MarkService`, `StackService`. `links` holds the SQLAlchemy models, engine, repositories and transaction, plus the pathlib filesystem reader. `gates` holds four TUI screens (roots, files, marks, stacks) and two modal name prompts. `inits` holds `load_config` and the `Repositories` / `Services` containers, which is what the TUI receives — no config and no container cross that boundary.
+
+`FEATURE_PLAN.md` records how it was built, step by step. Every step in it is done; it is history, not a to-do list.
 
 ## Commands
 
@@ -29,27 +31,19 @@ mise run lint:mypy       # mypy src (strict)
 mise run lint:import-linter   # GLIMPSE layer contracts
 mise run lint:pylint src
 mise run lint:codespell
+mise run lint:py         # every linter at once, plus black --check, taplo and vulture
 mise run format:black    # black src tests
 mise run format:ruff     # ruff --fix
-mise run p <cmd>         # run poetry <cmd>
+mise run format:py       # both of the above, plus taplo
 ```
 
-Run a single test through poetry:
+Pass extra arguments through with `--`, which is how you run a single test:
 
 ```bash
-mise run p run pytest tests/unit/pacts/test_config.py -k test_empty_roots
+mise run test:unit -- -k test_it_trims_surrounding_whitespace
 ```
 
-### Broken aggregate tasks
-
-`python_tasks.toml` was copied from a Django project and several tasks reference tooling this repo does not have. **Do not reach for them; run the individual `lint:*` / `format:*` / `test:*` tasks above instead.**
-
-- `check`, `devcheck`, `fullcheck` — depend on a task named `lint`, but the file defines `_lint`; mise errors out.
-- `format`, `_lint` — invoke `djlint` and `vulture`, neither of which is installed.
-- `shitcheck` — calls `scripts/shitcheck.sh`; there is no `scripts/` directory.
-- `test:*:cov:diff` — reference `acervus.adapters.web`, a package that does not exist.
-
-Black runs with `skip-magic-trailing-comma`, so `format:black` strips trailing commas that ruff then demands back as `COM812`. Run `format:ruff` after `format:black` to settle them.
+Every task comes from the shared config that `mise.toml` includes over git; `mise tasks ls --all` lists what is actually available. `lint:py` is the gate CI runs and it passes clean, so prefer it over invoking the linters one by one.
 
 ## Architecture: GLIMPSE layers
 

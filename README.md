@@ -5,9 +5,9 @@ Acervus organizes files across your disk with **marks** (labels) and **stacks**
 (named groups), keeping the index in a local SQLite database while your files
 stay exactly where they are.
 
-> **Status:** early MVP. The database schema is in place and the TUI lists your
-> configured roots. Scanning, tagging, and querying are under active development
-> (see [`FEATURE_PLAN.md`](FEATURE_PLAN.md)).
+> **Status:** MVP complete. Acervus scans your configured roots, browses the
+> indexed files, and marks and stacks them from the TUI, with filtering on each.
+> [`FEATURE_PLAN.md`](FEATURE_PLAN.md) records how it was built.
 
 ## Concepts
 
@@ -63,11 +63,22 @@ If no config file is found, `acre` prints a hint and exits.
 acre                 # launch the TUI
 ```
 
-The app opens on the configured roots, showing the database path and an
-`alias -> path` table. Press `q` to quit.
+The app opens on the roots screen, listing each configured `alias -> path`.
 
-Planned (per the MVP plan): scanning roots, browsing files, and marking and
-stacking them from the TUI.
+| Key | Where | Does |
+|-----|-------|------|
+| `f` / `m` / `t` | anywhere | Open the files, marks or stacks screen |
+| `q` | anywhere | Quit |
+| `s` | roots | Scan the root under the cursor and report what changed |
+| `r` / `k` / `c` | files | Cycle the filter by root, by mark, by stack |
+| `a` / `x` | files | Put a mark on the file under the cursor, take one off |
+| `s` / `u` | files | Put the file in a stack, take it out of its stack |
+| `escape` | any screen | Back |
+
+A scan inserts files the root has and the index lacks, rewrites those whose size
+or mtime moved, and drops those the root no longer has. Marks and stacks come
+into being by being applied, and are deleted once nothing carries or sits in
+them.
 
 ## Architecture
 
@@ -95,33 +106,36 @@ src/acervus/
   pacts/               # protocols, DTOs, exceptions, AcervusConfig
   specs/               # business invariants
   mills/               # business logic
-  links/db/sqlalchemy/ # models, engine, (repositories)
-  gates/tui/textual/   # the Textual app
+  links/db/sqlalchemy/ # models, engine, repositories, transaction
+  links/fs/            # the pathlib filesystem reader
+  gates/tui/textual/   # the Textual app and its screens
   inits/               # config loading, DI, the entry point
   edges/               # infrastructure
 ```
 
 ## Development
 
-Tasks are defined in [`mise.toml`](mise.toml) and `python_tasks.toml`:
+Tasks come from [`mise.toml`](mise.toml) and the shared config it includes over
+git. `mise tasks ls --all` lists them.
 
 ```bash
 mise run test:py            # all tests
 mise run test:unit          # unit tests only
 mise run test:int           # integration tests only
+mise run lint:py            # every linter at once — what CI runs
 mise run lint:ruff          # ruff, --no-fix
 mise run lint:mypy          # mypy src (strict)
 mise run lint:import-linter # GLIMPSE layer contracts
 mise run lint:pylint src
 mise run lint:codespell
-mise run format:black       # black src tests
-mise run format:ruff        # ruff --fix
-mise run p <cmd>            # run poetry <cmd>
+mise run format:py          # black, ruff --fix and taplo
 ```
 
-Run the individual tasks above; the aggregate ones (`check`, `format`,
-`fullcheck`) came from another project and reference tooling this repo does not
-have. `CLAUDE.md` lists which ones are broken and why.
+Pass extra arguments through with `--`, which is how you run a single test:
+
+```bash
+mise run test:unit -- -k test_it_trims_surrounding_whitespace
+```
 
 Tooling: **Black** (line length 88, preview), **Ruff** (`select = ["ALL"]`,
 preview), **MyPy** (strict), **Import Linter**, **Pylint**, **Codespell**. Unit
