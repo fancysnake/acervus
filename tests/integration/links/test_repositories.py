@@ -16,7 +16,7 @@ from acervus.links.db.sqlalchemy import (
     RootRepository,
     StackRepository,
 )
-from acervus.pacts.file import FileDTO, FileFilter, FileWrite
+from acervus.pacts.file import BARE, FileDTO, FileFilter, FileWrite
 from acervus.pacts.mark import MarkDTO, MarkNotFoundError, MarkSummary
 from acervus.pacts.root import RootDTO, RootNotFoundError
 from acervus.pacts.stack import StackDTO, StackNotFoundError, StackSummary
@@ -317,7 +317,7 @@ class TestFileRepositoryMarkFilter:
         todo, _ = files.upsert_many([a_file(root.id, TODO), a_file(root.id, INBOX)])
         marks.attach(todo.id, mark_id=marks.create(INVOICE).id)
 
-        listed = files.list_all(FileFilter(unmarked=True))
+        listed = files.list_all(FileFilter(mark=BARE))
 
         assert [file.relative_path for file in listed] == [INBOX]
 
@@ -330,7 +330,7 @@ class TestFileRepositoryMarkFilter:
 
         marks.detach(todo.id, mark_id=mark.id)
 
-        assert len(files.list_all(FileFilter(unmarked=True))) == 1
+        assert len(files.list_all(FileFilter(mark=BARE))) == 1
 
     @staticmethod
     def test_the_root_and_mark_filters_combine(roots, files, marks):
@@ -347,14 +347,6 @@ class TestFileRepositoryMarkFilter:
         listed = files.list_all(FileFilter(root_id=docs.id, mark=INVOICE))
 
         assert [file.root_id for file in listed] == [docs.id]
-
-    @staticmethod
-    def test_asking_for_a_mark_and_unmarked_at_once_lists_nothing(roots, files, marks):
-        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
-        todo = files.upsert_many([a_file(root.id, TODO)])[0]
-        marks.attach(todo.id, mark_id=marks.create(INVOICE).id)
-
-        assert files.list_all(FileFilter(mark=INVOICE, unmarked=True)) == []
 
 
 class TestMarkRepository:

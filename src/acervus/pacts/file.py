@@ -1,6 +1,7 @@
 """Boundary contracts for the file noun."""
 
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, TypedDict
 
@@ -8,6 +9,18 @@ from pydantic import BaseModel, ConfigDict
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+
+class Bare(Enum):
+    """The files carrying no mark at all, or sitting in no stack at all."""
+
+    BARE = "bare"
+
+
+BARE = Bare.BARE
+
+# One narrowing of a listing: a name to match, BARE, or None for no narrowing.
+type Narrowing = str | Bare | None
 
 
 class FileDTO(BaseModel):
@@ -35,17 +48,15 @@ class FileWrite(TypedDict):
 class FileFilter:
     """How a file listing is narrowed.
 
-    An empty filter lists everything, and the narrowings combine. Naming a
-    mark and asking for unmarked files at once is self-contradictory and lists
-    nothing, which is the honest answer rather than an error; the same goes
-    for a stack and unstacked.
+    An empty filter lists everything, and the narrowings combine. Each of
+    ``mark`` and ``stack`` is one choice with three outcomes: ``None`` does not
+    narrow at all, a name keeps the files carrying it or sitting in it, and
+    ``BARE`` keeps only the files that carry no mark, or sit in no stack.
     """
 
     root_id: int | None = None
-    mark: str | None = None
-    unmarked: bool = False
-    stack: str | None = None
-    unstacked: bool = False
+    mark: Narrowing = None
+    stack: Narrowing = None
 
 
 @dataclass(frozen=True, slots=True)

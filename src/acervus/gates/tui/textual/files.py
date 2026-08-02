@@ -8,7 +8,7 @@ from textual.widgets import DataTable, Footer, Header, Static
 
 from acervus.gates.tui.textual.marks import MarkNamePrompt
 from acervus.gates.tui.textual.stacks import StackNamePrompt
-from acervus.pacts.file import FileFilter
+from acervus.pacts.file import BARE, Bare, FileFilter
 from acervus.pacts.mark import InvalidMarkNameError, MarkNotFoundError
 from acervus.pacts.stack import InvalidStackNameError
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult
     from textual.binding import BindingType
 
-    from acervus.pacts.file import FileDTO, FileServiceProtocol
+    from acervus.pacts.file import FileDTO, FileServiceProtocol, Narrowing
     from acervus.pacts.mark import MarkServiceProtocol
     from acervus.pacts.root import RootDTO, RootServiceProtocol
     from acervus.pacts.stack import StackServiceProtocol
@@ -43,9 +43,6 @@ SITS_IN = "Stack: {name}"
 SITS_LOOSE = "Stack: none"
 STACKED = "Put {path} in {name}."
 TOOK_OUT = "Took {path} out of its stack."
-
-# One stop on a filter cycle: a name to match, or the bare-only flag.
-Narrowing = tuple[str | None, bool]
 
 
 class FilesScreen(Screen[None]):
@@ -106,24 +103,21 @@ class FilesScreen(Screen[None]):
         if not self._listed:
             return
         steps: list[int | None] = [None, *(root.id for root in self._listed)]
-        standing = (
-            steps.index(self._scope.root_id) if self._scope.root_id in steps else 0
+        self._scope = replace(
+            self._scope, root_id=self._next(steps, self._scope.root_id)
         )
-        self._scope = replace(self._scope, root_id=steps[(standing + 1) % len(steps)])
         self._refresh()
 
     def action_cycle_mark(self) -> None:
         """Step the mark filter on: any mark, then each mark, then unmarked."""
         steps = self._steps(mark.name for mark in self._marks.list_all())
-        mark, unmarked = self._next(steps, (self._scope.mark, self._scope.unmarked))
-        self._scope = replace(self._scope, mark=mark, unmarked=unmarked)
+        self._scope = replace(self._scope, mark=self._next(steps, self._scope.mark))
         self._refresh()
 
     def action_cycle_stack(self) -> None:
         """Step the stack filter on: any stack, then each stack, then unstacked."""
         steps = self._steps(stack.name for stack in self._stacks.list_all())
-        stack, unstacked = self._next(steps, (self._scope.stack, self._scope.unstacked))
-        self._scope = replace(self._scope, stack=stack, unstacked=unstacked)
+        self._scope = replace(self._scope, stack=self._next(steps, self._scope.stack))
         self._refresh()
 
     @staticmethod
@@ -133,10 +127,10 @@ class FilesScreen(Screen[None]):
         Returns:
             One step per stop, starting at the unfiltered one.
         """
-        return [(None, False), *((name, False) for name in names), (None, True)]
+        return [None, *names, BARE]
 
     @staticmethod
-    def _next(steps: list[Narrowing], current: Narrowing) -> Narrowing:
+    def _next[T](steps: list[T], current: T) -> T:
         """Return the step after this one, wrapping round at the end.
 
         A filter whose name has since been deleted is not in the cycle at all,
@@ -253,18 +247,27 @@ class FilesScreen(Screen[None]):
         self.query_one("#file-filter", Static).update(
             FILTER_LABEL.format(
                 roots=ALL_ROOTS if root_id is None else by_id[root_id],
-                marks=self._mark_scope(),
-                stacks=self._stack_scope(),
+                marks=self._scope_label(
+                    self._scope.mark, any_label=ANY_MARK, bare_label=UNMARKED
+                ),
+                stacks=self._scope_label(
+                    self._scope.stack, any_label=ANY_STACK, bare_label=UNSTACKED_ONLY
+                ),
             )
         )
         self._show_carried()
 
-    def _mark_scope(self) -> str:
-        if self._scope.unmarked:
-            return UNMARKED
-        return ANY_MARK if self._scope.mark is None else self._scope.mark
+    @staticmethod
+    def _scope_label(scope: Narrowing, *, any_label: str, bare_label: str) -> str:
+        """Return the word describing one narrowing on the filter line.
 
-    def _stack_scope(self) -> str:
-        if self._scope.unstacked:
-            return UNSTACKED_ONLY
-        return ANY_STACK if self._scope.stack is None else self._scope.stack
+        Returns:
+            The label to show for this axis.
+        """
+        match scope:
+            case None:
+                return any_label
+            case Bare.BARE:
+                return bare_label
+            case name:
+                return name
