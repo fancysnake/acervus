@@ -74,15 +74,23 @@ class FileRepository(FileRepositoryProtocol):
         Returns:
             The written files, in the order they were given.
         """
-        written = []
-        for file in files:
-            relative_path = str(file["relative_path"])
-            record = self._session.scalar(
+        wanted = [(file, str(file["relative_path"])) for file in files]
+        # Every key is fetched in one query. The two IN clauses form a cross
+        # product, so rows outside the wanted set can come back; the exact-key
+        # lookup below drops them. A scan passes one root, where it is exact.
+        standing = {
+            (record.root_id, record.relative_path): record
+            for record in self._session.scalars(
                 select(File).where(
-                    File.root_id == file["root_id"], File.relative_path == relative_path
+                    File.root_id.in_({file["root_id"] for file, _ in wanted}),
+                    File.relative_path.in_({path for _, path in wanted}),
                 )
-            )
-            if record is None:
+            ).all()
+        }
+        written = []
+        for file, relative_path in wanted:
+            key = (file["root_id"], relative_path)
+            if (record := standing.get(key)) is None:
                 record = File(
                     root_id=file["root_id"],
                     relative_path=relative_path,
@@ -90,6 +98,7 @@ class FileRepository(FileRepositoryProtocol):
                     mtime=file["mtime"],
                 )
                 self._session.add(record)
+                standing[key] = record
             else:
                 record.size = file["size"]
                 record.mtime = file["mtime"]
@@ -99,6 +108,9 @@ class FileRepository(FileRepositoryProtocol):
 
     def delete_many(self, file_ids: Iterable[int]) -> None:
         """Delete the files with these ids."""
+        # Deleted one instance at a time rather than with a bulk DELETE: the
+        # marks relationship is secondary, and SQLAlchemy clears each file's
+        # file_marks rows per instance. A bulk statement would orphan them.
         records = self._session.scalars(
             select(File).where(File.id.in_(list(file_ids)))
         ).all()

@@ -58,14 +58,19 @@ class RootRepository(RootRepositoryProtocol):
         Returns:
             The written roots, in the order they were given.
         """
+        wanted = list(roots)
+        standing = {
+            record.alias: record
+            for record in self._session.scalars(
+                select(Root).where(Root.alias.in_([root["alias"] for root in wanted]))
+            ).all()
+        }
         written = []
-        for root in roots:
-            record = self._session.scalar(
-                select(Root).where(Root.alias == root["alias"])
-            )
-            if record is None:
+        for root in wanted:
+            if (record := standing.get(root["alias"])) is None:
                 record = Root(alias=root["alias"], path=str(root["path"]))
                 self._session.add(record)
+                standing[root["alias"]] = record
             else:
                 record.path = str(root["path"])
             written.append(record)
@@ -74,6 +79,9 @@ class RootRepository(RootRepositoryProtocol):
 
     def delete_many(self, aliases: Iterable[str]) -> None:
         """Delete the roots with these aliases, along with their files."""
+        # Deleted one instance at a time rather than with a bulk DELETE: the
+        # files relationship cascades delete-orphan, which SQLAlchemy applies
+        # per instance. A bulk statement would leave the file rows behind.
         records = self._session.scalars(
             select(Root).where(Root.alias.in_(list(aliases)))
         ).all()
