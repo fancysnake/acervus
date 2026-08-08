@@ -1,12 +1,17 @@
 """Configuration contract for Acervus."""
 
 from pathlib import Path
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import AfterValidator, BaseModel, ConfigDict
+
+# A path a person wrote, so ``~`` means their home rather than a directory of
+# that name. Expanded on the way in, so nothing downstream has to remember to.
+type UserPath = Annotated[Path, AfterValidator(Path.expanduser)]
 
 
 class AcervusConfig(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    db_path: Path
-    roots: dict[str, Path]
+    db_path: UserPath
+    roots: dict[str, UserPath]
