@@ -20,5 +20,9 @@ class FileInfo:
 class FilesystemReaderProtocol(Protocol):
     """Read-only traversal of a directory tree."""
 
+    @staticmethod
+    def exists(root: Path) -> bool:
+        """Return whether this root is there to be walked."""
+
     def walk(self, root: Path) -> Iterator[FileInfo]:
         """Yield every file below ``root``, skipping directories themselves."""

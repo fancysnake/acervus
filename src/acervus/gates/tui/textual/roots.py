@@ -6,6 +6,7 @@ from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Static
 
 from acervus.gates.tui.textual.table import fill_table
+from acervus.pacts.root import RootUnavailableError
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -55,8 +56,12 @@ class RootsScreen(Screen[None]):
             return
         table = self.query_one("#roots", DataTable)
         alias = self._listed[table.cursor_row].alias
-        result = self._scan.scan(alias)
-        self.query_one("#scan-result", Static).update(
+        try:
+            result = self._scan.scan(alias)
+        except RootUnavailableError as error:
+            self._report(str(error))
+            return
+        self._report(
             SCAN_RESULT.format(
                 alias=alias,
                 added=result.added,
@@ -64,3 +69,6 @@ class RootsScreen(Screen[None]):
                 updated=result.updated,
             )
         )
+
+    def _report(self, message: str) -> None:
+        self.query_one("#scan-result", Static).update(message)

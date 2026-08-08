@@ -8,12 +8,15 @@ from acervus.pacts.file import (
     ScanResult,
     ScanServiceProtocol,
 )
+from acervus.pacts.root import RootUnavailableError
 
 if TYPE_CHECKING:
     from acervus.pacts.file import FileDTO, FileFilter, FileRepositoryProtocol
     from acervus.pacts.filesystem import FileInfo, FilesystemReaderProtocol
     from acervus.pacts.root import RootRepositoryProtocol
     from acervus.pacts.transaction import TransactionProtocol
+
+UNAVAILABLE = "Root {alias!r} is not at {path}, so nothing was scanned."
 
 
 class FileService(FileServiceProtocol):
@@ -60,9 +63,18 @@ class ScanService(ScanServiceProtocol):
 
         Returns:
             How many files the index gained, lost and rewrote.
+
+        Raises:
+            RootUnavailableError: The root's directory is not there to read.
+                A root that has been unmounted reads as empty, so scanning it
+                would delete every file indexed under it along with the marks
+                and stack membership they carry.
         """
         with self._transaction.atomic():
             root = self._roots.read_by_alias(alias)
+            if not self._filesystem.exists(root.path):
+                message = UNAVAILABLE.format(alias=alias, path=root.path)
+                raise RootUnavailableError(message)
             indexed = {
                 file.relative_path: file for file in self._files.list_by_root(root.id)
             }

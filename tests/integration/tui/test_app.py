@@ -6,6 +6,7 @@
 
 
 from pathlib import Path
+from shutil import rmtree
 
 import pytest
 from textual.widgets import DataTable, Static
@@ -22,6 +23,7 @@ ONE_REMOVED = "1 removed"
 ONE_UPDATED = "1 updated"
 INBOX = "inbox.md"
 LONGER = "hello again, and then some"
+NOT_THERE = "is not at"
 
 
 @pytest.fixture(name="root_dir")
@@ -195,6 +197,33 @@ class TestScanAction:
             assert ONE_UPDATED in str(status.render())
 
         assert repositories.files.list_by_root(root.id)[0].size == len(LONGER)
+
+    @staticmethod
+    async def test_a_root_that_is_gone_is_reported(app, services, root_dir):
+        write(root_dir, INBOX)
+        services.roots.sync({DOCS: root_dir})
+
+        async with app.run_test() as pilot:
+            await pilot.press(SCAN_KEY)
+            rmtree(root_dir)
+            await pilot.press(SCAN_KEY)
+            status = pilot.app.query_one("#scan-result", Static)
+
+            assert NOT_THERE in str(status.render())
+
+    @staticmethod
+    async def test_a_root_that_is_gone_keeps_its_files(
+        app, services, repositories, root_dir
+    ):
+        write(root_dir, INBOX)
+        root = services.roots.sync({DOCS: root_dir})[0]
+
+        async with app.run_test() as pilot:
+            await pilot.press(SCAN_KEY)
+            rmtree(root_dir)
+            await pilot.press(SCAN_KEY)
+
+        assert len(repositories.files.list_by_root(root.id)) == 1
 
     @staticmethod
     async def test_scanning_an_empty_index_does_nothing(app):

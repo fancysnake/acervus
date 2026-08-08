@@ -12,6 +12,15 @@ if TYPE_CHECKING:
 class PathlibFilesystemReader(FilesystemReaderProtocol):
     """Walks a directory tree, reporting each file as the index sees it."""
 
+    @staticmethod
+    def exists(root: Path) -> bool:
+        """Return whether this root is there to be walked.
+
+        Returns:
+            Whether the path names a directory that can be reached now.
+        """
+        return root.is_dir()
+
     def walk(self, root: Path) -> Iterator[FileInfo]:
         """Yield every file below ``root``, skipping directories themselves.
 

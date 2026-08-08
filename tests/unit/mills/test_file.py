@@ -13,7 +13,12 @@ import pytest
 from acervus.mills.file import FileService, ScanService
 from acervus.pacts.file import FileDTO, FileFilter, FileRepositoryProtocol, ScanResult
 from acervus.pacts.filesystem import FileInfo, FilesystemReaderProtocol
-from acervus.pacts.root import RootDTO, RootNotFoundError, RootRepositoryProtocol
+from acervus.pacts.root import (
+    RootDTO,
+    RootNotFoundError,
+    RootRepositoryProtocol,
+    RootUnavailableError,
+)
 from acervus.pacts.transaction import TransactionProtocol
 
 ALIAS = "docs"
@@ -65,6 +70,7 @@ def roots_fixture():
 @pytest.fixture(name="filesystem")
 def filesystem_fixture():
     reader = Mock(spec=FilesystemReaderProtocol)
+    reader.exists.return_value = True
     reader.walk.return_value = iter(())
     return reader
 
@@ -143,6 +149,41 @@ class TestScan:
 
         files.upsert_many.assert_not_called()
         files.delete_many.assert_not_called()
+
+
+class TestScanOfAnUnavailableRoot:
+    @staticmethod
+    def test_it_asks_whether_the_root_is_there(service, filesystem):
+        service.scan(ALIAS)
+
+        filesystem.exists.assert_called_once_with(ROOT.path)
+
+    @staticmethod
+    def test_a_root_that_is_not_there_raises(service, filesystem):
+        filesystem.exists.return_value = False
+
+        with pytest.raises(RootUnavailableError):
+            service.scan(ALIAS)
+
+    @staticmethod
+    def test_it_keeps_every_indexed_file(service, files, filesystem):
+        files.list_by_root.return_value = [NOTES_INDEXED, INBOX_INDEXED]
+        filesystem.exists.return_value = False
+
+        with pytest.raises(RootUnavailableError):
+            service.scan(ALIAS)
+
+        files.delete_many.assert_not_called()
+        files.upsert_many.assert_not_called()
+
+    @staticmethod
+    def test_it_does_not_walk_a_root_that_is_not_there(service, filesystem):
+        filesystem.exists.return_value = False
+
+        with pytest.raises(RootUnavailableError):
+            service.scan(ALIAS)
+
+        filesystem.walk.assert_not_called()
 
 
 class TestScanAdds:

@@ -13,6 +13,10 @@ class RootNotFoundError(Exception):
     """No root matches the requested identifier."""
 
 
+class RootUnavailableError(Exception):
+    """The root is indexed, but its directory is not there to be read."""
+
+
 class RootDTO(BaseModel):
     """A named directory Acervus indexes, as read from the index."""
 

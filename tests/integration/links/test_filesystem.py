@@ -74,6 +74,18 @@ class TestPathlibFilesystemReader:
         assert not list(reader.walk(tmp_path / "gone"))
 
     @staticmethod
+    def test_a_directory_that_is_there_exists(reader, tmp_path):
+        assert reader.exists(tmp_path)
+
+    @staticmethod
+    def test_a_directory_that_is_not_there_does_not(reader, tmp_path):
+        assert not reader.exists(tmp_path / "gone")
+
+    @staticmethod
+    def test_a_file_is_not_a_root(reader, tmp_path):
+        assert not reader.exists(write(tmp_path, INBOX))
+
+    @staticmethod
     def test_paths_are_relative_to_the_root(reader, tmp_path):
         write(tmp_path, TODO)
 
