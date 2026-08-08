@@ -1,19 +1,18 @@
 """The files screen — lists the files Acervus has indexed, and marks them."""
 
 from dataclasses import replace
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Protocol
 
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Static
 
-from acervus.gates.tui.textual.marks import MarkNamePrompt
-from acervus.gates.tui.textual.stacks import StackNamePrompt
+from acervus.gates.tui.textual.prompt import NamePrompt
 from acervus.pacts.file import BARE, Bare, FileFilter
 from acervus.pacts.mark import InvalidMarkNameError, MarkNotFoundError
 from acervus.pacts.stack import InvalidStackNameError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
     from textual.app import ComposeResult
     from textual.binding import BindingType
@@ -43,6 +42,14 @@ SITS_IN = "Stack: {name}"
 SITS_LOOSE = "Stack: none"
 STACKED = "Put {path} in {name}."
 TOOK_OUT = "Took {path} out of its stack."
+REJECTIONS = (InvalidMarkNameError, InvalidStackNameError, MarkNotFoundError)
+
+
+class Operation(Protocol):
+    """One thing the screen does to the file under the cursor."""
+
+    def __call__(self, file: FileDTO, *, name: str) -> str:
+        """Carry it out, returning what to report."""
 
 
 class FilesScreen(Screen[None]):
@@ -85,7 +92,7 @@ class FilesScreen(Screen[None]):
         yield Static(NO_FILES_MESSAGE, id="no-files")
         yield Static(id="file-marks")
         yield Static(id="file-stack")
-        yield Static(id="mark-status")
+        yield Static(id="status")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -144,19 +151,23 @@ class FilesScreen(Screen[None]):
 
     def action_add_mark(self) -> None:
         """Ask for a name and put that mark on the file under the cursor."""
-        if self._under_cursor() is not None:
-            self.app.push_screen(MarkNamePrompt(ADD_PROMPT), self._add_mark)
+        self._ask(
+            ADD_PROMPT, answer=lambda name: self._on_file(name, apply=self._marked)
+        )
 
     def action_remove_mark(self) -> None:
         """Ask for a name and take that mark off the file under the cursor."""
-        if self._under_cursor() is not None:
-            self.app.push_screen(MarkNamePrompt(REMOVE_PROMPT), self._remove_mark)
+        self._ask(
+            REMOVE_PROMPT, answer=lambda name: self._on_file(name, apply=self._took_off)
+        )
 
     def action_add_stack(self) -> None:
         """Ask for a name and put the file under the cursor in that stack."""
-        if self._under_cursor() is not None:
-            self.app.push_screen(StackNamePrompt(STACK_PROMPT), self._add_stack)
+        self._ask(
+            STACK_PROMPT, answer=lambda name: self._on_file(name, apply=self._stacked)
+        )
 
+    # The one operation that needs no name, so it does not go through _ask.
     def action_remove_stack(self) -> None:
         """Take the file under the cursor out of whatever stack it sits in."""
         if (file := self._under_cursor()) is None:
@@ -165,41 +176,38 @@ class FilesScreen(Screen[None]):
         self._report(TOOK_OUT.format(path=file.relative_path))
         self._show_carried()
 
-    def _add_stack(self, name: str | None) -> None:
+    def _ask(self, prompt: str, *, answer: Callable[[str | None], None]) -> None:
+        if self._under_cursor() is not None:
+            self.app.push_screen(NamePrompt(prompt), answer)
+
+    def _on_file(self, name: str | None, *, apply: Operation) -> None:
+        """Carry the operation out on the file under the cursor and report it.
+
+        Every operation the screen offers ends the same way — say what
+        happened, then redraw what the file now carries — so it is said once.
+        A name the service rejects is reported in place of the outcome.
+        """
         file = self._under_cursor()
         if name is None or file is None:
             return
         try:
-            stack = self._stacks.add(file.id, name=name)
-        except InvalidStackNameError as error:
-            self._report(str(error))
-            return
-        self._report(STACKED.format(path=file.relative_path, name=stack.name))
+            message = apply(file, name=name)
+        except REJECTIONS as error:
+            message = str(error)
+        self._report(message)
         self._show_carried()
 
-    def _add_mark(self, name: str | None) -> None:
-        file = self._under_cursor()
-        if name is None or file is None:
-            return
-        try:
-            mark = self._marks.add(file.id, name=name)
-        except InvalidMarkNameError as error:
-            self._report(str(error))
-            return
-        self._report(MARKED.format(path=file.relative_path, name=mark.name))
-        self._show_carried()
+    def _marked(self, file: FileDTO, *, name: str) -> str:
+        mark = self._marks.add(file.id, name=name)
+        return MARKED.format(path=file.relative_path, name=mark.name)
 
-    def _remove_mark(self, name: str | None) -> None:
-        file = self._under_cursor()
-        if name is None or file is None:
-            return
-        try:
-            self._marks.remove(file.id, name=name)
-        except (InvalidMarkNameError, MarkNotFoundError) as error:
-            self._report(str(error))
-            return
-        self._report(TOOK_OFF.format(name=name.strip(), path=file.relative_path))
-        self._show_carried()
+    def _took_off(self, file: FileDTO, *, name: str) -> str:
+        self._marks.remove(file.id, name=name)
+        return TOOK_OFF.format(name=name.strip(), path=file.relative_path)
+
+    def _stacked(self, file: FileDTO, *, name: str) -> str:
+        stack = self._stacks.add(file.id, name=name)
+        return STACKED.format(path=file.relative_path, name=stack.name)
 
     def _under_cursor(self) -> FileDTO | None:
         table = self.query_one("#files", DataTable)
@@ -208,7 +216,7 @@ class FilesScreen(Screen[None]):
         return self._shown[table.cursor_row]
 
     def _report(self, message: str) -> None:
-        self.query_one("#mark-status", Static).update(message)
+        self.query_one("#status", Static).update(message)
 
     def _show_carried(self) -> None:
         carried = self.query_one("#file-marks", Static)

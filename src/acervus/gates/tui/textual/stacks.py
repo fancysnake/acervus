@@ -1,9 +1,9 @@
-"""The stacks screen, and the prompt used to name a stack."""
+"""The stacks screen — lists every stack, and what sits in the one selected."""
 
 from typing import TYPE_CHECKING, ClassVar
 
-from textual.screen import ModalScreen, Screen
-from textual.widgets import DataTable, Footer, Header, Input, Static
+from textual.screen import Screen
+from textual.widgets import DataTable, Footer, Header, Static
 
 from acervus.gates.tui.textual.table import fill_table
 from acervus.pacts.file import FileFilter
@@ -18,31 +18,6 @@ if TYPE_CHECKING:
 NO_STACKS_MESSAGE = "No stacks yet. Put a file in one from the files screen."
 CONTENTS_LABEL = "In {name}:"
 EMPTY_CONTENTS = "(nothing)"
-
-
-class StackNamePrompt(ModalScreen[str | None]):
-    """Asks for a stack name, returning it or ``None`` if the user backs out."""
-
-    BINDINGS: ClassVar[list[BindingType]] = [("escape", "cancel", "Cancel")]
-
-    def __init__(self, prompt: str) -> None:
-        super().__init__()
-        self._prompt = prompt
-
-    def compose(self) -> ComposeResult:
-        yield Static(self._prompt, id="stack-prompt")
-        yield Input(id="stack-name")
-
-    def on_mount(self) -> None:
-        self.query_one("#stack-name", Input).focus()
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Hand the typed name back to whoever opened the prompt."""
-        self.dismiss(event.value)
-
-    def action_cancel(self) -> None:
-        """Back out without naming a stack."""
-        self.dismiss(None)
 
 
 class StacksScreen(Screen[None]):

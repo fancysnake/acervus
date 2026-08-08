@@ -76,7 +76,7 @@ class TestAddingAMark:
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, INVOICE)
-            status = pilot.app.screen.query_one("#mark-status", Static)
+            status = pilot.app.screen.query_one("#status", Static)
 
             assert INVOICE in str(status.render())
 
@@ -117,7 +117,7 @@ class TestAddingAMark:
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, BAD_NAME)
-            status = pilot.app.screen.query_one("#mark-status", Static)
+            status = pilot.app.screen.query_one("#status", Static)
 
             assert REJECTED in str(status.render())
 
@@ -153,7 +153,7 @@ class TestRemovingAMark:
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, REMOVE_KEY)
             await type_name(pilot, HOLIDAY)
-            status = pilot.app.screen.query_one("#mark-status", Static)
+            status = pilot.app.screen.query_one("#status", Static)
 
             assert HOLIDAY in str(status.render())
 

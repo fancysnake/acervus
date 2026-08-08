@@ -90,7 +90,7 @@ class TestPuttingAFileInAStack:
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, PUT_KEY)
             await type_name(pilot, EMPTY_NAME)
-            status = pilot.app.screen.query_one("#mark-status", Static)
+            status = pilot.app.screen.query_one("#status", Static)
 
             assert REJECTED in str(status.render())
 

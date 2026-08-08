@@ -1,9 +1,9 @@
-"""The marks screen, and the prompt used to name a mark."""
+"""The marks screen — lists every mark in use, with how many files carry it."""
 
 from typing import TYPE_CHECKING, ClassVar
 
-from textual.screen import ModalScreen, Screen
-from textual.widgets import DataTable, Footer, Header, Input, Static
+from textual.screen import Screen
+from textual.widgets import DataTable, Footer, Header, Static
 
 from acervus.gates.tui.textual.table import fill_table
 
@@ -14,31 +14,6 @@ if TYPE_CHECKING:
     from acervus.pacts.mark import MarkServiceProtocol, MarkSummary
 
 NO_MARKS_MESSAGE = "No marks yet. Put one on a file from the files screen."
-
-
-class MarkNamePrompt(ModalScreen[str | None]):
-    """Asks for a mark name, returning it or ``None`` if the user backs out."""
-
-    BINDINGS: ClassVar[list[BindingType]] = [("escape", "cancel", "Cancel")]
-
-    def __init__(self, prompt: str) -> None:
-        super().__init__()
-        self._prompt = prompt
-
-    def compose(self) -> ComposeResult:
-        yield Static(self._prompt, id="mark-prompt")
-        yield Input(id="mark-name")
-
-    def on_mount(self) -> None:
-        self.query_one("#mark-name", Input).focus()
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Hand the typed name back to whoever opened the prompt."""
-        self.dismiss(event.value)
-
-    def action_cancel(self) -> None:
-        """Back out without naming a mark."""
-        self.dismiss(None)
 
 
 class MarksScreen(Screen[None]):

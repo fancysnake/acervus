@@ -50,8 +50,7 @@ class StackService(StackServiceProtocol):
                 stack = self._stacks.read_by_name(cleaned)
             except StackNotFoundError:
                 stack = self._stacks.create(cleaned)
-            self._drop_empty(self._leave(file_id, joining=stack.id))
-            self._stacks.set_for_file(file_id, stack_id=stack.id)
+            self._move(file_id, stack_id=stack.id)
             return stack
 
     def remove(self, file_id: int) -> None:
@@ -61,18 +60,22 @@ class StackService(StackServiceProtocol):
         holding something.
         """
         with self._transaction.atomic():
-            if (previous := self._stacks.read_for_file(file_id)) is None:
-                return
-            self._stacks.set_for_file(file_id, stack_id=None)
-            self._drop_empty(previous.id)
+            self._move(file_id, stack_id=None)
 
-    def _leave(self, file_id: int, *, joining: int) -> int | None:
+    def _move(self, file_id: int, *, stack_id: int | None) -> None:
+        """Point this file at this stack, and drop the one it emptied.
+
+        Both directions are the same movement, so it is written once. Pointing
+        the file at its new stack is what takes it out of the old one, which is
+        why the count that decides whether the old one survives is read after.
+        """
         previous = self._stacks.read_for_file(file_id)
-        if previous is None or previous.id == joining:
-            return None
-        self._stacks.set_for_file(file_id, stack_id=None)
-        return previous.id
+        if (standing := None if previous is None else previous.id) == stack_id:
+            return
+        self._stacks.set_for_file(file_id, stack_id=stack_id)
+        if standing is not None:
+            self._drop_empty(standing)
 
-    def _drop_empty(self, stack_id: int | None) -> None:
-        if stack_id is not None and self._stacks.count_files(stack_id) == 0:
+    def _drop_empty(self, stack_id: int) -> None:
+        if self._stacks.count_files(stack_id) == 0:
             self._stacks.delete(stack_id)

@@ -117,10 +117,9 @@ class TestAddMoves:
 
         service.add(FILE_ID, name=TRIP)
 
-        assert stacks.set_for_file.call_args_list[0].kwargs == {"stack_id": None}
-        assert stacks.set_for_file.call_args_list[-1].kwargs == {
-            "stack_id": TRIP_STACK.id
-        }
+        # One write: pointing the file at its new stack is what takes it out
+        # of the old one.
+        stacks.set_for_file.assert_called_once_with(FILE_ID, stack_id=TRIP_STACK.id)
 
     @staticmethod
     def test_the_stack_it_left_survives_if_others_remain(service, stacks):
