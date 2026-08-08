@@ -15,3 +15,9 @@ class AcervusConfig(BaseModel):
 
     db_path: UserPath
     roots: dict[str, UserPath]
+
+
+class ConfigFile(BaseModel):
+    """A config file as it is written on disk, under its ``[acervus]`` table."""
+
+    acervus: AcervusConfig
