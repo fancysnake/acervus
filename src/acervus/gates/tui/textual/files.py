@@ -1,12 +1,13 @@
 """The files screen — lists the files Acervus has indexed, and marks them."""
 
 from dataclasses import replace
-from typing import TYPE_CHECKING, ClassVar, Protocol
+from typing import TYPE_CHECKING, ClassVar, Protocol, override
 
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Static
 
 from acervus.gates.tui.textual.prompt import NamePrompt
+from acervus.gates.tui.textual.table import fill_table
 from acervus.pacts.file import BARE, Bare, FileFilter
 from acervus.pacts.mark import InvalidMarkNameError, MarkNotFoundError
 from acervus.pacts.stack import InvalidStackNameError
@@ -84,8 +85,9 @@ class FilesScreen(Screen[None]):
         self._shown: list[FileDTO] = []
         self._scope = FileFilter()
 
+    # The widget tree does not depend on the data, so query_one never has to.
+    @override
     def compose(self) -> ComposeResult:
-        self._listed = self._roots.list_all()
         yield Header()
         yield Static(id="file-filter")
         yield DataTable(id="files")
@@ -96,9 +98,7 @@ class FilesScreen(Screen[None]):
         yield Footer()
 
     def on_mount(self) -> None:
-        table = self.query_one("#files", DataTable)
-        table.cursor_type = "row"
-        table.add_columns("Root", "Path", "Size")
+        self._listed = self._roots.list_all()
         self._refresh()
 
     def on_data_table_row_highlighted(self) -> None:
@@ -237,14 +237,18 @@ class FilesScreen(Screen[None]):
         self._shown = self._files.list_all(self._scope)
 
         table = self.query_one("#files", DataTable)
-        table.clear()
-        for file in self._shown:
-            table.add_row(
-                by_id.get(file.root_id, UNKNOWN_ALIAS),
-                str(file.relative_path),
-                str(file.size),
-            )
-
+        fill_table(
+            table,
+            columns=("Root", "Path", "Size"),
+            rows=[
+                (
+                    by_id.get(file.root_id, UNKNOWN_ALIAS),
+                    str(file.relative_path),
+                    str(file.size),
+                )
+                for file in self._shown
+            ],
+        )
         table.display = bool(self._shown)
         empty = self.query_one("#no-files", Static)
         empty.display = not self._shown

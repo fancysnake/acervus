@@ -80,7 +80,7 @@ class TestRootsScreen:
     @staticmethod
     async def test_an_empty_index_shows_no_table(app):
         async with app.run_test() as pilot:
-            assert not pilot.app.query("#roots")
+            assert not pilot.app.query_one("#roots", DataTable).display
 
     @staticmethod
     async def test_a_root_dropped_from_the_config_is_gone(app, services):
@@ -230,4 +230,4 @@ class TestScanAction:
         async with app.run_test() as pilot:
             await pilot.press(SCAN_KEY)
 
-            assert not pilot.app.query("#scan-result")
+            assert not str(pilot.app.query_one("#scan-result", Static).render())

@@ -1,6 +1,6 @@
 """The stacks screen — lists every stack, and what sits in the one selected."""
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, override
 
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Static
@@ -32,25 +32,27 @@ class StacksScreen(Screen[None]):
         self._stacks = stacks
         self._files = files
         self._listed: list[StackSummary] = []
+        self._held: dict[int, list[str]] = {}
 
+    # The widget tree does not depend on the data, so query_one never has to.
+    @override
     def compose(self) -> ComposeResult:
-        self._listed = self._stacks.list_all()
         yield Header()
-        if self._listed:
-            yield DataTable(id="stacks")
-            yield Static(id="stack-contents-label")
-            yield Static(id="stack-contents")
-        else:
-            yield Static(NO_STACKS_MESSAGE, id="no-stacks")
+        yield DataTable(id="stacks")
+        yield Static(NO_STACKS_MESSAGE, id="no-stacks")
+        yield Static(id="stack-contents-label")
+        yield Static(id="stack-contents")
         yield Footer()
 
     def on_mount(self) -> None:
-        if not self._listed:
-            return
-        rows = [(stack.name, str(stack.file_count)) for stack in self._listed]
+        self._listed = self._stacks.list_all()
         fill_table(
-            self.query_one("#stacks", DataTable), columns=("Stack", "Files"), rows=rows
+            self.query_one("#stacks", DataTable),
+            columns=("Stack", "Files"),
+            rows=[(stack.name, str(stack.file_count)) for stack in self._listed],
         )
+        self.query_one("#stacks", DataTable).display = bool(self._listed)
+        self.query_one("#no-stacks", Static).display = not self._listed
         self._show_contents()
 
     def on_data_table_row_highlighted(self) -> None:
@@ -60,16 +62,31 @@ class StacksScreen(Screen[None]):
     def _show_contents(self) -> None:
         if (stack := self._under_cursor()) is None:
             return
-        held = self._files.list_all(FileFilter(stack=stack.name))
         self.query_one("#stack-contents-label", Static).update(
             CONTENTS_LABEL.format(name=stack.name)
         )
         self.query_one("#stack-contents", Static).update(
-            "\n".join(str(file.relative_path) for file in held) or EMPTY_CONTENTS
+            "\n".join(self._contents_of(stack)) or EMPTY_CONTENTS
         )
+
+    def _contents_of(self, stack: StackSummary) -> list[str]:
+        """Return the paths in this stack, reading them at most once.
+
+        Held by stack id rather than re-read per keystroke: the cursor moves
+        one row at a time, and every move would otherwise be a query.
+
+        Returns:
+            One relative path per file in the stack.
+        """
+        if stack.id not in self._held:
+            self._held[stack.id] = [
+                str(file.relative_path)
+                for file in self._files.list_all(FileFilter(stack=stack.name))
+            ]
+        return self._held[stack.id]
 
     def _under_cursor(self) -> StackSummary | None:
         table = self.query_one("#stacks", DataTable)
-        if not self._listed or not 0 <= table.cursor_row < len(self._listed):
+        if not 0 <= table.cursor_row < len(self._listed):
             return None
         return self._listed[table.cursor_row]

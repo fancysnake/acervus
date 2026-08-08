@@ -1,6 +1,6 @@
 """The roots screen — lists the roots Acervus has indexed, and scans them."""
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, override
 
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Static
@@ -32,30 +32,29 @@ class RootsScreen(Screen[None]):
         self._scan = scan
         self._listed: list[RootDTO] = []
 
+    # The widget tree does not depend on the data, so query_one never has to.
+    @override
     def compose(self) -> ComposeResult:
-        self._listed = self._roots.list_all()
         yield Header()
-        if self._listed:
-            yield DataTable(id="roots")
-            yield Static(id="scan-result")
-        else:
-            yield Static(NO_ROOTS_MESSAGE, id="no-roots")
+        yield DataTable(id="roots")
+        yield Static(NO_ROOTS_MESSAGE, id="no-roots")
+        yield Static(id="scan-result")
         yield Footer()
 
     def on_mount(self) -> None:
-        if not self._listed:
-            return
-        rows = [(root.alias, str(root.path)) for root in self._listed]
+        self._listed = self._roots.list_all()
         fill_table(
-            self.query_one("#roots", DataTable), columns=("Alias", "Path"), rows=rows
+            self.query_one("#roots", DataTable),
+            columns=("Alias", "Path"),
+            rows=[(root.alias, str(root.path)) for root in self._listed],
         )
+        self.query_one("#roots", DataTable).display = bool(self._listed)
+        self.query_one("#no-roots", Static).display = not self._listed
 
     def action_scan(self) -> None:
         """Scan the root under the cursor and report what changed."""
-        if not self._listed:
+        if (alias := self._under_cursor()) is None:
             return
-        table = self.query_one("#roots", DataTable)
-        alias = self._listed[table.cursor_row].alias
         try:
             result = self._scan.scan(alias)
         except RootUnavailableError as error:
@@ -69,6 +68,12 @@ class RootsScreen(Screen[None]):
                 updated=result.updated,
             )
         )
+
+    def _under_cursor(self) -> str | None:
+        table = self.query_one("#roots", DataTable)
+        if not 0 <= table.cursor_row < len(self._listed):
+            return None
+        return self._listed[table.cursor_row].alias
 
     def _report(self, message: str) -> None:
         self.query_one("#scan-result", Static).update(message)

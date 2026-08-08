@@ -1,6 +1,6 @@
 """The marks screen — lists every mark in use, with how many files carry it."""
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, override
 
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Static
@@ -26,19 +26,20 @@ class MarksScreen(Screen[None]):
         self._marks = marks
         self._listed: list[MarkSummary] = []
 
+    # The widget tree does not depend on the data, so query_one never has to.
+    @override
     def compose(self) -> ComposeResult:
-        self._listed = self._marks.list_all()
         yield Header()
-        if self._listed:
-            yield DataTable(id="marks")
-        else:
-            yield Static(NO_MARKS_MESSAGE, id="no-marks")
+        yield DataTable(id="marks")
+        yield Static(NO_MARKS_MESSAGE, id="no-marks")
         yield Footer()
 
     def on_mount(self) -> None:
-        if not self._listed:
-            return
-        rows = [(mark.name, str(mark.file_count)) for mark in self._listed]
+        self._listed = self._marks.list_all()
         fill_table(
-            self.query_one("#marks", DataTable), columns=("Mark", "Files"), rows=rows
+            self.query_one("#marks", DataTable),
+            columns=("Mark", "Files"),
+            rows=[(mark.name, str(mark.file_count)) for mark in self._listed],
         )
+        self.query_one("#marks", DataTable).display = bool(self._listed)
+        self.query_one("#no-marks", Static).display = not self._listed
