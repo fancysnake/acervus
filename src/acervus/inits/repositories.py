@@ -43,6 +43,18 @@ class Repositories:
             self._session = Session(self._engine)
         return self._session
 
+    def apart(self) -> Repositories:
+        """Return a second container over the same database, on its own session.
+
+        A SQLAlchemy session belongs to one thread, so work that runs off the
+        interface thread gets a container of its own rather than sharing this
+        one. The caller owns it, and closes it when the work is done.
+
+        Returns:
+            A container over the same database file, opened separately.
+        """
+        return Repositories(self._db_path)
+
     def close(self) -> None:
         """Close the session and dispose the engine, releasing the SQLite handle.
 

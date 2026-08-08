@@ -1,5 +1,6 @@
 """The roots screen — lists the roots Acervus has indexed, and scans them."""
 
+from asyncio import to_thread
 from typing import TYPE_CHECKING, ClassVar, override
 
 from textual.screen import Screen
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
     from acervus.pacts.root import RootDTO, RootServiceProtocol
 
 NO_ROOTS_MESSAGE = "No roots configured."
+SCANNING = "Scanning {alias}…"
 SCAN_RESULT = "{alias}: {added} added, {removed} removed, {updated} updated."
 
 
@@ -51,12 +53,18 @@ class RootsScreen(Screen[None]):
         self.query_one("#roots", DataTable).display = bool(self._listed)
         self.query_one("#no-roots", Static).display = not self._listed
 
-    def action_scan(self) -> None:
-        """Scan the root under the cursor and report what changed."""
+    async def action_scan(self) -> None:
+        """Scan the root under the cursor and report what changed.
+
+        The scan walks a directory tree and writes to the database, which is
+        long enough to freeze the interface if it runs here, so it runs on a
+        thread and this waits for it with the event loop still turning.
+        """
         if (alias := self._under_cursor()) is None:
             return
+        self._report(SCANNING.format(alias=alias))
         try:
-            result = self._scan.scan(alias)
+            result = await to_thread(self._scan.scan, alias)
         except RootUnavailableError as error:
             self._report(str(error))
             return

@@ -1,5 +1,6 @@
 """Tests for the containers in inits, against a real database."""
 
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from pathlib import Path
 
@@ -13,11 +14,15 @@ from acervus.links.db.sqlalchemy import (
     SessionTransaction,
 )
 from acervus.mills.root import RootService
+from acervus.pacts.root import RootUnavailableError
 
 NOTES = "notes"
 NOTES_PATH = Path("/home/user/notes")
 ARCHIVE = "archive"
 ARCHIVE_PATH = Path("/home/user/archive")
+CONTENT = "hello"
+LONGER = "hello again, and then some"
+INBOX = "inbox.md"
 
 
 @pytest.fixture(name="db_path")
@@ -34,6 +39,14 @@ def repositories_fixture(db_path):
 @pytest.fixture(name="services")
 def services_fixture(repositories):
     return Services(repositories)
+
+
+@pytest.fixture(name="tree")
+def tree_fixture(tmp_path):
+    tree = tmp_path / "notes"
+    tree.mkdir()
+    (tree / INBOX).write_text(CONTENT)
+    return tree
 
 
 class TestRepositories:
@@ -127,3 +140,48 @@ class TestServices:
 
         with closing(Repositories(db_path)) as reopened:
             assert [root.alias for root in reopened.roots.list_all()] == [NOTES]
+
+
+# The interface runs the scan on a thread, so it must work from one, and what
+# it writes must be visible to the session the interface is reading through.
+class TestScanningOffTheCallersThread:
+    @staticmethod
+    def test_it_scans_from_another_thread(services, tree):
+        services.roots.sync({NOTES: tree})
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            result = pool.submit(services.scan.scan, NOTES).result()
+
+        assert result.added == 1
+
+    @staticmethod
+    def test_the_shared_session_sees_what_the_thread_wrote(services, tree):
+        root = services.roots.sync({NOTES: tree})[0]
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pool.submit(services.scan.scan, NOTES).result()
+
+        assert len(services.files.list_by_root(root.id)) == 1
+
+    @staticmethod
+    def test_the_shared_session_sees_what_the_thread_rewrote(services, tree):
+        root = services.roots.sync({NOTES: tree})[0]
+        services.scan.scan(NOTES)
+        # Read it, so the shared session is holding the file as it was.
+        assert services.files.list_by_root(root.id)[0].size == len(CONTENT)
+        (tree / INBOX).write_text(LONGER)
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pool.submit(services.scan.scan, NOTES).result()
+
+        assert services.files.list_by_root(root.id)[0].size == len(LONGER)
+
+    @staticmethod
+    def test_a_root_that_is_not_there_still_raises(services, tmp_path):
+        services.roots.sync({NOTES: tmp_path / "gone"})
+
+        with (
+            ThreadPoolExecutor(max_workers=1) as pool,
+            pytest.raises(RootUnavailableError),
+        ):
+            pool.submit(services.scan.scan, NOTES).result()
