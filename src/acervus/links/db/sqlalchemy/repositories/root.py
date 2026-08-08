@@ -2,7 +2,8 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
+from sqlalchemy.dialects.sqlite import insert
 
 from acervus.links.db.sqlalchemy.models import Root
 from acervus.pacts.root import (
@@ -58,33 +59,42 @@ class RootRepository(RootRepositoryProtocol):
         Returns:
             The written roots, in the order they were given.
         """
-        wanted = list(roots)
-        standing = {
+        wanted = [{"alias": root["alias"], "path": str(root["path"])} for root in roots]
+        if not wanted:
+            return []
+        upsert = insert(Root)
+        self._session.execute(
+            upsert.on_conflict_do_update(
+                index_elements=[Root.alias], set_={"path": upsert.excluded.path}
+            ),
+            wanted,
+        )
+        self._session.flush()
+        return [RootDTO.model_validate(record) for record in self._read(wanted)]
+
+    def _read(self, wanted: list[dict[str, str]]) -> list[Root]:
+        """Return the written roots in the order they were given.
+
+        Returns:
+            One record per wanted alias.
+        """
+        aliases = [root["alias"] for root in wanted]
+        # populate_existing: the upsert went round the session, so a record it
+        # changed is still in the identity map holding the path it had before.
+        written = {
             record.alias: record
             for record in self._session.scalars(
-                select(Root).where(Root.alias.in_([root["alias"] for root in wanted]))
+                select(Root)
+                .where(Root.alias.in_(aliases))
+                .execution_options(populate_existing=True)
             ).all()
         }
-        written = []
-        for root in wanted:
-            if (record := standing.get(root["alias"])) is None:
-                record = Root(alias=root["alias"], path=str(root["path"]))
-                self._session.add(record)
-                standing[root["alias"]] = record
-            else:
-                record.path = str(root["path"])
-            written.append(record)
-        self._session.flush()
-        return [RootDTO.model_validate(record) for record in written]
+        return [written[alias] for alias in aliases]
 
     def delete_many(self, aliases: Iterable[str]) -> None:
         """Delete the roots with these aliases, along with their files."""
-        # Deleted one instance at a time rather than with a bulk DELETE: the
-        # files relationship cascades delete-orphan, which SQLAlchemy applies
-        # per instance. A bulk statement would leave the file rows behind.
-        records = self._session.scalars(
-            select(Root).where(Root.alias.in_(list(aliases)))
-        ).all()
-        for record in records:
-            self._session.delete(record)
+        self._session.execute(delete(Root).where(Root.alias.in_(list(aliases))))
         self._session.flush()
+        # The database cascaded the file rows away without telling the session,
+        # so anything it still holds from before is no longer what is on disk.
+        self._session.expire_all()

@@ -8,6 +8,7 @@
 from pathlib import Path
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from acervus.links.db.sqlalchemy import (
@@ -16,6 +17,7 @@ from acervus.links.db.sqlalchemy import (
     RootRepository,
     StackRepository,
 )
+from acervus.links.db.sqlalchemy.models import FileMark
 from acervus.pacts.file import BARE, FileDTO, FileFilter, FileWrite
 from acervus.pacts.mark import MarkDTO, MarkNotFoundError, MarkSummary
 from acervus.pacts.root import RootDTO, RootNotFoundError
@@ -281,6 +283,43 @@ class TestFileRepository:
         remaining = files.list_by_root(root.id)
         assert len(remaining) == 1
         assert remaining[0].id == written[1].id
+
+    @staticmethod
+    def test_delete_many_takes_the_marks_off_with_it(marked_file, files, marks):
+        mark = marks.create(INVOICE)
+        marks.attach(marked_file.id, mark_id=mark.id)
+
+        files.delete_many([marked_file.id])
+
+        assert marks.count_files(mark.id) == 0
+
+
+# The schema declares every cascade, so these hold however the rows are
+# deleted — a bulk statement included.
+class TestTheDatabaseEnforcesIt:
+    @staticmethod
+    def test_a_file_needs_a_root_that_exists(files):
+        with pytest.raises(IntegrityError):
+            files.upsert_many([a_file(UNKNOWN_ID, TODO)])
+
+    @staticmethod
+    def test_a_link_needs_a_mark_that_exists(marked_file, session):
+        session.add(FileMark(file_id=marked_file.id, mark_id=UNKNOWN_ID))
+
+        with pytest.raises(IntegrityError):
+            session.flush()
+
+    @staticmethod
+    def test_dropping_a_root_leaves_no_file_behind(roots, files, marks):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        written = files.upsert_many([a_file(root.id, TODO)])[0]
+        mark = marks.create(INVOICE)
+        marks.attach(written.id, mark_id=mark.id)
+
+        roots.delete_many([DOCS])
+
+        assert files.list_all() == []
+        assert marks.count_files(mark.id) == 0
 
 
 class TestFileRepositoryMarkFilter:

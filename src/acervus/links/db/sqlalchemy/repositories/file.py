@@ -1,8 +1,9 @@
 """The file repository, backing the pacts protocol with SQLAlchemy."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, tuple_
+from sqlalchemy.dialects.sqlite import insert
 
 from acervus.links.db.sqlalchemy.models import File, FileMark, Mark, Stack
 from acervus.pacts.file import (
@@ -18,6 +19,15 @@ if TYPE_CHECKING:
 
     from sqlalchemy import ColumnElement
     from sqlalchemy.orm import Session
+
+
+class _FileRow(TypedDict):
+    """One row as the upsert statement takes it, with the path as a string."""
+
+    root_id: int
+    relative_path: str
+    size: int
+    mtime: float
 
 
 def _carrying(mark: str | Bare) -> ColumnElement[bool]:
@@ -93,46 +103,51 @@ class FileRepository(FileRepositoryProtocol):
         Returns:
             The written files, in the order they were given.
         """
-        wanted = [(file, str(file["relative_path"])) for file in files]
-        # Every key is fetched in one query. The two IN clauses form a cross
-        # product, so rows outside the wanted set can come back; the exact-key
-        # lookup below drops them. A scan passes one root, where it is exact.
-        standing = {
+        wanted: list[_FileRow] = [
+            {
+                "root_id": file["root_id"],
+                "relative_path": str(file["relative_path"]),
+                "size": file["size"],
+                "mtime": file["mtime"],
+            }
+            for file in files
+        ]
+        if not wanted:
+            return []
+        upsert = insert(File)
+        self._session.execute(
+            upsert.on_conflict_do_update(
+                index_elements=[File.root_id, File.relative_path],
+                set_={"size": upsert.excluded.size, "mtime": upsert.excluded.mtime},
+            ),
+            wanted,
+        )
+        self._session.flush()
+        return [FileDTO.model_validate(record) for record in self._read(wanted)]
+
+    def _read(self, wanted: list[_FileRow]) -> list[File]:
+        """Return the written files in the order they were given.
+
+        Returns:
+            One record per wanted root and relative path.
+        """
+        keys = [(file["root_id"], file["relative_path"]) for file in wanted]
+        # populate_existing: the upsert went round the session, so a record it
+        # changed is still in the identity map holding the size it had before.
+        written = {
             (record.root_id, record.relative_path): record
             for record in self._session.scalars(
-                select(File).where(
-                    File.root_id.in_({file["root_id"] for file, _ in wanted}),
-                    File.relative_path.in_({path for _, path in wanted}),
-                )
+                select(File)
+                .where(tuple_(File.root_id, File.relative_path).in_(keys))
+                .execution_options(populate_existing=True)
             ).all()
         }
-        written = []
-        for file, relative_path in wanted:
-            key = (file["root_id"], relative_path)
-            if (record := standing.get(key)) is None:
-                record = File(
-                    root_id=file["root_id"],
-                    relative_path=relative_path,
-                    size=file["size"],
-                    mtime=file["mtime"],
-                )
-                self._session.add(record)
-                standing[key] = record
-            else:
-                record.size = file["size"]
-                record.mtime = file["mtime"]
-            written.append(record)
-        self._session.flush()
-        return [FileDTO.model_validate(record) for record in written]
+        return [written[key] for key in keys]
 
     def delete_many(self, file_ids: Iterable[int]) -> None:
         """Delete the files with these ids."""
-        # Deleted one instance at a time rather than with a bulk DELETE: the
-        # marks relationship is secondary, and SQLAlchemy clears each file's
-        # file_marks rows per instance. A bulk statement would orphan them.
-        records = self._session.scalars(
-            select(File).where(File.id.in_(list(file_ids)))
-        ).all()
-        for record in records:
-            self._session.delete(record)
+        self._session.execute(delete(File).where(File.id.in_(list(file_ids))))
         self._session.flush()
+        # The database cascaded the file_marks rows away without telling the
+        # session, so anything it still holds from before is out of date.
+        self._session.expire_all()

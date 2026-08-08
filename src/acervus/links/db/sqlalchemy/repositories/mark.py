@@ -109,11 +109,12 @@ class MarkRepository(MarkRepositoryProtocol):
         return self._session.scalar(counted) or 0
 
     def delete(self, mark_id: int) -> None:
-        """Delete this mark, detaching it from every file first."""
-        self._session.execute(delete(FileMark).where(FileMark.mark_id == mark_id))
-        if (record := self._session.get(Mark, mark_id)) is not None:
-            self._session.delete(record)
+        """Delete this mark, which takes it off every file carrying it."""
+        self._session.execute(delete(Mark).where(Mark.id == mark_id))
         self._session.flush()
+        # The database cascaded the file_marks rows away without telling the
+        # session, so anything it still holds from before is out of date.
+        self._session.expire_all()
 
     def _link(self, file_id: int, *, mark_id: int) -> FileMark | None:
         return self._session.scalar(

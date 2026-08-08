@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.sql.functions import count
 
 from acervus.links.db.sqlalchemy.models import File, Stack
@@ -102,11 +102,9 @@ class StackRepository(StackRepositoryProtocol):
         return self._session.scalar(counted) or 0
 
     def delete(self, stack_id: int) -> None:
-        """Delete this stack, turning its files loose first."""
-        for record in self._session.scalars(
-            select(File).where(File.stack_id == stack_id)
-        ).all():
-            record.stack_id = None
-        if (stack := self._session.get(Stack, stack_id)) is not None:
-            self._session.delete(stack)
+        """Delete this stack, which turns the files it held loose."""
+        self._session.execute(delete(Stack).where(Stack.id == stack_id))
         self._session.flush()
+        # The database set the files it held loose without telling the session,
+        # so anything it still holds from before is out of date.
+        self._session.expire_all()
