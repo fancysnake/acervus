@@ -5,11 +5,6 @@ goes through ``pilot.app.screen`` — ``pilot.app.query`` resolves against the
 default screen and would never see it.
 """
 
-# Pytest supplies fixtures by name, so a test taking three of them is not the
-# argument-order hazard the positional limit guards against.
-# pylint: disable=too-many-positional-arguments
-
-
 from pathlib import Path
 
 import pytest
@@ -28,7 +23,7 @@ ALL_ROOTS = "all roots"
 
 
 @pytest.fixture(name="trees")
-def trees_fixture(tmp_path):
+def trees_fixture(*, tmp_path):
     docs = tmp_path / "docs"
     photos = tmp_path / "photos"
     for tree, relative_path in ((docs, INBOX), (photos, SNAP)):
@@ -46,7 +41,7 @@ def index(services, trees) -> None:
 
 class TestFilesScreen:
     @staticmethod
-    async def test_it_lists_every_indexed_file(app, services, trees):
+    async def test_it_lists_every_indexed_file(*, app, services, trees):
         index(services, trees)
 
         async with app.run_test() as pilot:
@@ -56,7 +51,7 @@ class TestFilesScreen:
             assert table.row_count == 1 + 1  # one file under each root
 
     @staticmethod
-    async def test_a_row_names_the_root_and_the_path(app, services, trees):
+    async def test_a_row_names_the_root_and_the_path(*, app, services, trees):
         index(services, trees)
 
         async with app.run_test() as pilot:
@@ -66,7 +61,7 @@ class TestFilesScreen:
             assert table.get_row_at(0)[:2] == [DOCS, INBOX]
 
     @staticmethod
-    async def test_a_row_carries_the_size(app, services, trees):
+    async def test_a_row_carries_the_size(*, app, services, trees):
         index(services, trees)
 
         async with app.run_test() as pilot:
@@ -76,7 +71,7 @@ class TestFilesScreen:
             assert table.get_row_at(0)[2] == str(len(CONTENT))
 
     @staticmethod
-    async def test_a_nested_path_is_shown_whole(app, services, trees):
+    async def test_a_nested_path_is_shown_whole(*, app, services, trees):
         index(services, trees)
 
         async with app.run_test() as pilot:
@@ -86,7 +81,7 @@ class TestFilesScreen:
             assert table.get_row_at(1)[:2] == [PHOTOS, str(Path(SNAP))]
 
     @staticmethod
-    async def test_an_empty_index_says_so(app, services, trees):
+    async def test_an_empty_index_says_so(*, app, services, trees):
         services.roots.sync(trees)
 
         async with app.run_test() as pilot:
@@ -97,7 +92,7 @@ class TestFilesScreen:
             assert NO_FILES_MESSAGE in str(message.render())
 
     @staticmethod
-    async def test_an_empty_index_hides_the_table(app, services, trees):
+    async def test_an_empty_index_hides_the_table(*, app, services, trees):
         services.roots.sync(trees)
 
         async with app.run_test() as pilot:
@@ -106,7 +101,7 @@ class TestFilesScreen:
             assert not pilot.app.screen.query_one("#files", DataTable).display
 
     @staticmethod
-    async def test_it_starts_unfiltered(app, services, trees):
+    async def test_it_starts_unfiltered(*, app, services, trees):
         index(services, trees)
 
         async with app.run_test() as pilot:
@@ -116,7 +111,7 @@ class TestFilesScreen:
             assert ALL_ROOTS in str(label.render())
 
     @staticmethod
-    async def test_the_filter_narrows_to_one_root(app, services, trees):
+    async def test_the_filter_narrows_to_one_root(*, app, services, trees):
         index(services, trees)
 
         async with app.run_test() as pilot:
@@ -130,7 +125,7 @@ class TestFilesScreen:
             assert DOCS in str(label.render())
 
     @staticmethod
-    async def test_the_filter_steps_to_the_next_root(app, services, trees):
+    async def test_the_filter_steps_to_the_next_root(*, app, services, trees):
         index(services, trees)
 
         async with app.run_test() as pilot:
@@ -143,7 +138,7 @@ class TestFilesScreen:
             assert table.get_row_at(0)[0] == PHOTOS
 
     @staticmethod
-    async def test_the_filter_wraps_back_to_all_roots(app, services, trees):
+    async def test_the_filter_wraps_back_to_all_roots(*, app, services, trees):
         index(services, trees)
 
         async with app.run_test() as pilot:
@@ -157,7 +152,7 @@ class TestFilesScreen:
             assert ALL_ROOTS in str(label.render())
 
     @staticmethod
-    async def test_back_returns_to_the_roots(app, services, trees):
+    async def test_back_returns_to_the_roots(*, app, services, trees):
         index(services, trees)
 
         async with app.run_test() as pilot:

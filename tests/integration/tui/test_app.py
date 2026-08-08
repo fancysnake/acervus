@@ -1,10 +1,5 @@
 """Integration tests for the Acervus TUI, over a real database."""
 
-# Pytest supplies fixtures by name, so a test taking three of them is not the
-# argument-order hazard the positional limit guards against.
-# pylint: disable=too-many-positional-arguments
-
-
 from pathlib import Path
 from shutil import rmtree
 
@@ -27,7 +22,7 @@ NOT_THERE = "is not at"
 
 
 @pytest.fixture(name="root_dir")
-def root_dir_fixture(tmp_path):
+def root_dir_fixture(*, tmp_path):
     root_dir = tmp_path / "tree"
     root_dir.mkdir()
     return root_dir
@@ -41,7 +36,7 @@ def write(root_dir: Path, relative_path: str) -> None:
 
 class TestRootsScreen:
     @staticmethod
-    async def test_displays_the_indexed_roots(app, services):
+    async def test_displays_the_indexed_roots(*, app, services):
         services.roots.sync({DOCS: DOCS_PATH, PHOTOS: PHOTOS_PATH})
 
         async with app.run_test() as pilot:
@@ -50,7 +45,7 @@ class TestRootsScreen:
             assert table.row_count == 1 + 1  # docs + photos
 
     @staticmethod
-    async def test_a_row_carries_the_alias_and_the_path(app, services):
+    async def test_a_row_carries_the_alias_and_the_path(*, app, services):
         services.roots.sync({DOCS: DOCS_PATH})
 
         async with app.run_test() as pilot:
@@ -59,7 +54,7 @@ class TestRootsScreen:
             assert table.get_row_at(0) == [DOCS, str(DOCS_PATH)]
 
     @staticmethod
-    async def test_the_rows_are_ordered_by_alias(app, services):
+    async def test_the_rows_are_ordered_by_alias(*, app, services):
         services.roots.sync({PHOTOS: PHOTOS_PATH, DOCS: DOCS_PATH})
 
         async with app.run_test() as pilot:
@@ -71,19 +66,19 @@ class TestRootsScreen:
             ]
 
     @staticmethod
-    async def test_an_empty_index_says_so(app):
+    async def test_an_empty_index_says_so(*, app):
         async with app.run_test() as pilot:
             message = pilot.app.query_one("#no-roots", Static)
 
             assert NO_ROOTS_MESSAGE in str(message.render())
 
     @staticmethod
-    async def test_an_empty_index_shows_no_table(app):
+    async def test_an_empty_index_shows_no_table(*, app):
         async with app.run_test() as pilot:
             assert not pilot.app.query_one("#roots", DataTable).display
 
     @staticmethod
-    async def test_a_root_dropped_from_the_config_is_gone(app, services):
+    async def test_a_root_dropped_from_the_config_is_gone(*, app, services):
         services.roots.sync({DOCS: DOCS_PATH, PHOTOS: PHOTOS_PATH})
         services.roots.sync({DOCS: DOCS_PATH})
 
@@ -96,7 +91,7 @@ class TestRootsScreen:
 
 class TestScanAction:
     @staticmethod
-    async def test_it_reports_what_the_scan_added(app, services, root_dir):
+    async def test_it_reports_what_the_scan_added(*, app, services, root_dir):
         write(root_dir, "notes/todo.md")
         write(root_dir, "inbox.md")
         services.roots.sync({DOCS: root_dir})
@@ -108,7 +103,7 @@ class TestScanAction:
             assert BOTH_ADDED in str(status.render())
 
     @staticmethod
-    async def test_it_names_the_root_it_scanned(app, services, root_dir):
+    async def test_it_names_the_root_it_scanned(*, app, services, root_dir):
         write(root_dir, "inbox.md")
         services.roots.sync({DOCS: root_dir})
 
@@ -119,7 +114,7 @@ class TestScanAction:
             assert DOCS in str(status.render())
 
     @staticmethod
-    async def test_the_files_reach_the_index(app, services, repositories, root_dir):
+    async def test_the_files_reach_the_index(*, app, services, repositories, root_dir):
         write(root_dir, "inbox.md")
         root = services.roots.sync({DOCS: root_dir})[0]
 
@@ -129,7 +124,7 @@ class TestScanAction:
         assert len(repositories.files.list_by_root(root.id)) == 1
 
     @staticmethod
-    async def test_an_empty_root_reports_nothing_added(app, services, root_dir):
+    async def test_an_empty_root_reports_nothing_added(*, app, services, root_dir):
         services.roots.sync({DOCS: root_dir})
 
         async with app.run_test() as pilot:
@@ -139,7 +134,7 @@ class TestScanAction:
             assert NOTHING_ADDED in str(status.render())
 
     @staticmethod
-    async def test_a_second_scan_adds_nothing(app, services, root_dir):
+    async def test_a_second_scan_adds_nothing(*, app, services, root_dir):
         write(root_dir, "inbox.md")
         services.roots.sync({DOCS: root_dir})
 
@@ -151,7 +146,7 @@ class TestScanAction:
             assert NOTHING_ADDED in str(status.render())
 
     @staticmethod
-    async def test_it_scans_the_selected_root(app, services, root_dir, tmp_path):
+    async def test_it_scans_the_selected_root(*, app, services, root_dir, tmp_path):
         other = tmp_path / "other"
         other.mkdir()
         write(root_dir, "inbox.md")
@@ -168,7 +163,7 @@ class TestScanAction:
 
     @staticmethod
     async def test_a_deleted_file_leaves_the_index(
-        app, services, repositories, root_dir
+        *, app, services, repositories, root_dir
     ):
         write(root_dir, INBOX)
         root = services.roots.sync({DOCS: root_dir})[0]
@@ -184,7 +179,9 @@ class TestScanAction:
         assert not repositories.files.list_by_root(root.id)
 
     @staticmethod
-    async def test_a_changed_file_is_rewritten(app, services, repositories, root_dir):
+    async def test_a_changed_file_is_rewritten(
+        *, app, services, repositories, root_dir
+    ):
         write(root_dir, INBOX)
         root = services.roots.sync({DOCS: root_dir})[0]
 
@@ -199,7 +196,7 @@ class TestScanAction:
         assert repositories.files.list_by_root(root.id)[0].size == len(LONGER)
 
     @staticmethod
-    async def test_a_root_that_is_gone_is_reported(app, services, root_dir):
+    async def test_a_root_that_is_gone_is_reported(*, app, services, root_dir):
         write(root_dir, INBOX)
         services.roots.sync({DOCS: root_dir})
 
@@ -213,7 +210,7 @@ class TestScanAction:
 
     @staticmethod
     async def test_a_root_that_is_gone_keeps_its_files(
-        app, services, repositories, root_dir
+        *, app, services, repositories, root_dir
     ):
         write(root_dir, INBOX)
         root = services.roots.sync({DOCS: root_dir})[0]
@@ -226,7 +223,7 @@ class TestScanAction:
         assert len(repositories.files.list_by_root(root.id)) == 1
 
     @staticmethod
-    async def test_scanning_an_empty_index_does_nothing(app):
+    async def test_scanning_an_empty_index_does_nothing(*, app):
         async with app.run_test() as pilot:
             await pilot.press(SCAN_KEY)
 

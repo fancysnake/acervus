@@ -1,10 +1,5 @@
 """Tests for the stack service in mills."""
 
-# Pytest supplies fixtures by name, so a test taking three of them is not the
-# argument-order hazard the positional limit guards against.
-# pylint: disable=too-many-positional-arguments
-
-
 from unittest.mock import MagicMock, Mock
 
 import pytest
@@ -42,13 +37,13 @@ def transaction_fixture():
 
 
 @pytest.fixture(name="service")
-def service_fixture(stacks, transaction):
+def service_fixture(*, stacks, transaction):
     return StackService(stacks=stacks, transaction=transaction)
 
 
 class TestListing:
     @staticmethod
-    def test_list_all_delegates(service, stacks, transaction):
+    def test_list_all_delegates(*, service, stacks, transaction):
         stacks.list_all.return_value = [TRIP_SUMMARY]
 
         assert service.list_all() == [TRIP_SUMMARY]
@@ -57,7 +52,7 @@ class TestListing:
         transaction.atomic.assert_not_called()
 
     @staticmethod
-    def test_for_file_delegates(service, stacks):
+    def test_for_file_delegates(*, service, stacks):
         stacks.read_for_file.return_value = TRIP_STACK
 
         assert service.for_file(FILE_ID) == TRIP_STACK
@@ -65,13 +60,13 @@ class TestListing:
         stacks.read_for_file.assert_called_once_with(FILE_ID)
 
     @staticmethod
-    def test_for_file_is_none_when_the_file_sits_loose(service):
+    def test_for_file_is_none_when_the_file_sits_loose(*, service):
         assert service.for_file(FILE_ID) is None
 
 
 class TestAdd:
     @staticmethod
-    def test_it_puts_the_file_in_an_existing_stack(service, stacks):
+    def test_it_puts_the_file_in_an_existing_stack(*, service, stacks):
         assert service.add(FILE_ID, name=TRIP) == TRIP_STACK
 
         stacks.read_by_name.assert_called_once_with(TRIP)
@@ -79,7 +74,7 @@ class TestAdd:
         stacks.set_for_file.assert_called_once_with(FILE_ID, stack_id=TRIP_STACK.id)
 
     @staticmethod
-    def test_it_creates_a_stack_the_index_lacks(service, stacks):
+    def test_it_creates_a_stack_the_index_lacks(*, service, stacks):
         stacks.read_by_name.side_effect = StackNotFoundError(TRIP)
         stacks.create.return_value = TRIP_STACK
 
@@ -88,13 +83,13 @@ class TestAdd:
         stacks.create.assert_called_once_with(TRIP)
 
     @staticmethod
-    def test_it_cleans_the_name_first(service, stacks):
+    def test_it_cleans_the_name_first(*, service, stacks):
         service.add(FILE_ID, name="  iceland   trip ")
 
         stacks.read_by_name.assert_called_once_with(TRIP)
 
     @staticmethod
-    def test_a_bad_name_never_reaches_the_repository(service, stacks, transaction):
+    def test_a_bad_name_never_reaches_the_repository(*, service, stacks, transaction):
         with pytest.raises(InvalidStackNameError):
             service.add(FILE_ID, name="   ")
 
@@ -102,7 +97,7 @@ class TestAdd:
         transaction.atomic.assert_not_called()
 
     @staticmethod
-    def test_it_writes_inside_one_transaction(service, transaction):
+    def test_it_writes_inside_one_transaction(*, service, transaction):
         service.add(FILE_ID, name=TRIP)
 
         transaction.atomic.assert_called_once_with()
@@ -112,7 +107,7 @@ class TestAdd:
 
 class TestAddMoves:
     @staticmethod
-    def test_a_file_leaves_the_stack_it_was_in(service, stacks):
+    def test_a_file_leaves_the_stack_it_was_in(*, service, stacks):
         stacks.read_for_file.return_value = TAXES_STACK
 
         service.add(FILE_ID, name=TRIP)
@@ -122,7 +117,7 @@ class TestAddMoves:
         stacks.set_for_file.assert_called_once_with(FILE_ID, stack_id=TRIP_STACK.id)
 
     @staticmethod
-    def test_the_stack_it_left_survives_if_others_remain(service, stacks):
+    def test_the_stack_it_left_survives_if_others_remain(*, service, stacks):
         stacks.read_for_file.return_value = TAXES_STACK
         stacks.count_files.return_value = 3
 
@@ -131,7 +126,7 @@ class TestAddMoves:
         stacks.delete.assert_not_called()
 
     @staticmethod
-    def test_the_stack_it_emptied_is_deleted(service, stacks):
+    def test_the_stack_it_emptied_is_deleted(*, service, stacks):
         stacks.read_for_file.return_value = TAXES_STACK
         stacks.count_files.return_value = 0
 
@@ -141,7 +136,7 @@ class TestAddMoves:
         stacks.delete.assert_called_once_with(TAXES_STACK.id)
 
     @staticmethod
-    def test_adding_to_the_stack_it_is_already_in_deletes_nothing(service, stacks):
+    def test_adding_to_the_stack_it_is_already_in_deletes_nothing(*, service, stacks):
         stacks.read_for_file.return_value = TRIP_STACK
         stacks.count_files.return_value = 0
 
@@ -152,7 +147,7 @@ class TestAddMoves:
 
 class TestRemove:
     @staticmethod
-    def test_it_takes_the_file_out(service, stacks):
+    def test_it_takes_the_file_out(*, service, stacks):
         stacks.read_for_file.return_value = TRIP_STACK
 
         service.remove(FILE_ID)
@@ -160,14 +155,14 @@ class TestRemove:
         stacks.set_for_file.assert_called_once_with(FILE_ID, stack_id=None)
 
     @staticmethod
-    def test_a_loose_file_is_left_alone(service, stacks):
+    def test_a_loose_file_is_left_alone(*, service, stacks):
         service.remove(FILE_ID)
 
         stacks.set_for_file.assert_not_called()
         stacks.delete.assert_not_called()
 
     @staticmethod
-    def test_a_stack_still_holding_files_survives(service, stacks):
+    def test_a_stack_still_holding_files_survives(*, service, stacks):
         stacks.read_for_file.return_value = TRIP_STACK
         stacks.count_files.return_value = 2
 
@@ -176,7 +171,7 @@ class TestRemove:
         stacks.delete.assert_not_called()
 
     @staticmethod
-    def test_a_stack_left_empty_is_deleted(service, stacks):
+    def test_a_stack_left_empty_is_deleted(*, service, stacks):
         stacks.read_for_file.return_value = TRIP_STACK
         stacks.count_files.return_value = 0
 
@@ -185,7 +180,7 @@ class TestRemove:
         stacks.delete.assert_called_once_with(TRIP_STACK.id)
 
     @staticmethod
-    def test_it_writes_inside_one_transaction(service, stacks, transaction):
+    def test_it_writes_inside_one_transaction(*, service, stacks, transaction):
         stacks.read_for_file.return_value = TRIP_STACK
 
         service.remove(FILE_ID)

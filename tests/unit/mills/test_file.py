@@ -1,10 +1,5 @@
 """Tests for the scan service in mills."""
 
-# Pytest supplies fixtures by name, so a test taking three of them is not the
-# argument-order hazard the positional limit guards against.
-# pylint: disable=too-many-positional-arguments
-
-
 from pathlib import Path
 from unittest.mock import MagicMock, Mock
 
@@ -80,7 +75,7 @@ def transaction_fixture():
 
 
 @pytest.fixture(name="service")
-def service_fixture(files, roots, filesystem, transaction):
+def service_fixture(*, files, roots, filesystem, transaction):
     return ScanService(
         files=files, roots=roots, filesystem=filesystem, transaction=transaction
     )
@@ -88,25 +83,25 @@ def service_fixture(files, roots, filesystem, transaction):
 
 class TestScan:
     @staticmethod
-    def test_it_looks_the_root_up_by_alias(service, roots):
+    def test_it_looks_the_root_up_by_alias(*, service, roots):
         service.scan(ALIAS)
 
         roots.read_by_alias.assert_called_once_with(ALIAS)
 
     @staticmethod
-    def test_it_walks_the_path_the_root_names(service, filesystem):
+    def test_it_walks_the_path_the_root_names(*, service, filesystem):
         service.scan(ALIAS)
 
         filesystem.walk.assert_called_once_with(ROOT.path)
 
     @staticmethod
-    def test_it_reads_the_index_for_the_root_it_found(service, files):
+    def test_it_reads_the_index_for_the_root_it_found(*, service, files):
         service.scan(ALIAS)
 
         files.list_by_root.assert_called_once_with(ROOT.id)
 
     @staticmethod
-    def test_it_scans_inside_one_transaction(service, filesystem, transaction):
+    def test_it_scans_inside_one_transaction(*, service, filesystem, transaction):
         filesystem.walk.return_value = iter((NOTES_ON_DISK,))
 
         service.scan(ALIAS)
@@ -116,7 +111,7 @@ class TestScan:
         transaction.atomic.return_value.__exit__.assert_called_once()
 
     @staticmethod
-    def test_an_unknown_alias_raises(service, roots, files):
+    def test_an_unknown_alias_raises(*, service, roots, files):
         roots.read_by_alias.side_effect = RootNotFoundError(ALIAS)
 
         with pytest.raises(RootNotFoundError):
@@ -128,20 +123,20 @@ class TestScan:
 
 class TestScanOfAnUnavailableRoot:
     @staticmethod
-    def test_it_asks_whether_the_root_is_there(service, filesystem):
+    def test_it_asks_whether_the_root_is_there(*, service, filesystem):
         service.scan(ALIAS)
 
         filesystem.exists.assert_called_once_with(ROOT.path)
 
     @staticmethod
-    def test_a_root_that_is_not_there_raises(service, filesystem):
+    def test_a_root_that_is_not_there_raises(*, service, filesystem):
         filesystem.exists.return_value = False
 
         with pytest.raises(RootUnavailableError):
             service.scan(ALIAS)
 
     @staticmethod
-    def test_it_keeps_every_indexed_file(service, files, filesystem):
+    def test_it_keeps_every_indexed_file(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED, INBOX_INDEXED]
         filesystem.exists.return_value = False
 
@@ -152,7 +147,7 @@ class TestScanOfAnUnavailableRoot:
         files.upsert_many.assert_not_called()
 
     @staticmethod
-    def test_it_does_not_walk_a_root_that_is_not_there(service, filesystem):
+    def test_it_does_not_walk_a_root_that_is_not_there(*, service, filesystem):
         filesystem.exists.return_value = False
 
         with pytest.raises(RootUnavailableError):
@@ -163,7 +158,7 @@ class TestScanOfAnUnavailableRoot:
 
 class TestScanAdds:
     @staticmethod
-    def test_it_indexes_every_file_it_walks(service, files, filesystem):
+    def test_it_indexes_every_file_it_walks(*, service, files, filesystem):
         filesystem.walk.return_value = iter((NOTES_ON_DISK, INBOX_ON_DISK))
 
         service.scan(ALIAS)
@@ -171,20 +166,20 @@ class TestScanAdds:
         files.upsert_many.assert_called_once_with([NOTES_WRITE, INBOX_WRITE])
 
     @staticmethod
-    def test_it_counts_a_file_the_index_lacks(service, filesystem):
+    def test_it_counts_a_file_the_index_lacks(*, service, filesystem):
         filesystem.walk.return_value = iter((NOTES_ON_DISK, INBOX_ON_DISK))
 
         assert service.scan(ALIAS).added == 1 + 1  # both walked files are new
 
     @staticmethod
-    def test_it_does_not_count_an_already_indexed_file(service, files, filesystem):
+    def test_it_does_not_count_an_already_indexed_file(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED]
         filesystem.walk.return_value = iter((NOTES_ON_DISK, INBOX_ON_DISK))
 
         assert service.scan(ALIAS).added == 1
 
     @staticmethod
-    def test_an_empty_root_writes_nothing(service, files):
+    def test_an_empty_root_writes_nothing(*, service, files):
         result = service.scan(ALIAS)
 
         files.upsert_many.assert_not_called()
@@ -193,7 +188,7 @@ class TestScanAdds:
 
 class TestScanRemoves:
     @staticmethod
-    def test_it_deletes_a_file_the_root_no_longer_has(service, files):
+    def test_it_deletes_a_file_the_root_no_longer_has(*, service, files):
         files.list_by_root.return_value = [NOTES_INDEXED]
 
         service.scan(ALIAS)
@@ -201,13 +196,13 @@ class TestScanRemoves:
         files.delete_many.assert_called_once_with([NOTES_INDEXED.id])
 
     @staticmethod
-    def test_it_counts_the_removal(service, files):
+    def test_it_counts_the_removal(*, service, files):
         files.list_by_root.return_value = [NOTES_INDEXED, INBOX_INDEXED]
 
         assert service.scan(ALIAS).removed == 1 + 1  # both indexed files are gone
 
     @staticmethod
-    def test_it_keeps_a_file_the_root_still_has(service, files, filesystem):
+    def test_it_keeps_a_file_the_root_still_has(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED, INBOX_INDEXED]
         filesystem.walk.return_value = iter((NOTES_ON_DISK,))
 
@@ -219,7 +214,7 @@ class TestScanRemoves:
 
 class TestScanUpdates:
     @staticmethod
-    def test_it_rewrites_a_file_whose_size_changed(service, files, filesystem):
+    def test_it_rewrites_a_file_whose_size_changed(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED]
         filesystem.walk.return_value = iter((NOTES_RESIZED,))
 
@@ -229,21 +224,21 @@ class TestScanUpdates:
         assert result.updated == 1
 
     @staticmethod
-    def test_it_rewrites_a_file_whose_mtime_changed(service, files, filesystem):
+    def test_it_rewrites_a_file_whose_mtime_changed(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED]
         filesystem.walk.return_value = iter((NOTES_TOUCHED,))
 
         assert service.scan(ALIAS).updated == 1
 
     @staticmethod
-    def test_an_update_is_not_an_addition(service, files, filesystem):
+    def test_an_update_is_not_an_addition(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED]
         filesystem.walk.return_value = iter((NOTES_RESIZED,))
 
         assert service.scan(ALIAS).added == 0
 
     @staticmethod
-    def test_it_leaves_an_unchanged_file_alone(service, files, filesystem):
+    def test_it_leaves_an_unchanged_file_alone(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED]
         filesystem.walk.return_value = iter((NOTES_ON_DISK,))
 
@@ -256,7 +251,7 @@ class TestScanUpdates:
 
 class TestScanTogether:
     @staticmethod
-    def test_counts_add_up(service, files, filesystem):
+    def test_counts_add_up(*, service, files, filesystem):
         gone = FileDTO(
             id=3, root_id=ROOT.id, relative_path=Path("gone.md"), size=SIZE, mtime=MTIME
         )
@@ -270,7 +265,7 @@ class TestScanTogether:
         assert result.updated == 1  # notes grew
 
     @staticmethod
-    def test_it_writes_the_new_and_the_changed_together(service, files, filesystem):
+    def test_it_writes_the_new_and_the_changed_together(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED]
         filesystem.walk.return_value = iter((NOTES_RESIZED, INBOX_ON_DISK))
 

@@ -1,10 +1,5 @@
 """Tests for the root service in mills."""
 
-# Pytest supplies fixtures by name, so a test taking three of them is not the
-# argument-order hazard the positional limit guards against.
-# pylint: disable=too-many-positional-arguments
-
-
 from pathlib import Path
 from unittest.mock import MagicMock, Mock
 
@@ -35,13 +30,13 @@ def transaction_fixture():
 
 
 @pytest.fixture(name="service")
-def service_fixture(roots, transaction):
+def service_fixture(*, roots, transaction):
     return RootService(roots=roots, transaction=transaction)
 
 
 class TestListAll:
     @staticmethod
-    def test_delegates_to_the_repository(service, roots, transaction):
+    def test_delegates_to_the_repository(*, service, roots, transaction):
         roots.list_all.return_value = [DOCS_ROOT]
 
         assert service.list_all() == [DOCS_ROOT]
@@ -52,7 +47,7 @@ class TestListAll:
 
 class TestSync:
     @staticmethod
-    def test_inserts_a_root_new_to_the_config(service, roots):
+    def test_inserts_a_root_new_to_the_config(*, service, roots):
         roots.list_all.side_effect = [[], [DOCS_ROOT]]
 
         assert service.sync({DOCS: DOCS_ROOT.path}) == [DOCS_ROOT]
@@ -63,7 +58,7 @@ class TestSync:
         roots.delete_many.assert_not_called()
 
     @staticmethod
-    def test_updates_a_root_whose_path_changed(service, roots):
+    def test_updates_a_root_whose_path_changed(*, service, roots):
         roots.list_all.side_effect = [[DOCS_ROOT], [MOVED_ROOT]]
 
         assert service.sync({DOCS: MOVED_ROOT.path}) == [MOVED_ROOT]
@@ -74,7 +69,7 @@ class TestSync:
         roots.delete_many.assert_not_called()
 
     @staticmethod
-    def test_drops_a_root_no_longer_configured(service, roots):
+    def test_drops_a_root_no_longer_configured(*, service, roots):
         roots.list_all.side_effect = [[DOCS_ROOT, PHOTOS_ROOT], [DOCS_ROOT]]
 
         assert service.sync({DOCS: DOCS_ROOT.path}) == [DOCS_ROOT]
@@ -83,7 +78,7 @@ class TestSync:
         roots.upsert_many.assert_not_called()
 
     @staticmethod
-    def test_leaves_an_unchanged_root_alone(service, roots):
+    def test_leaves_an_unchanged_root_alone(*, service, roots):
         roots.list_all.side_effect = [[DOCS_ROOT], [DOCS_ROOT]]
 
         assert service.sync({DOCS: DOCS_ROOT.path}) == [DOCS_ROOT]
@@ -92,7 +87,7 @@ class TestSync:
         roots.delete_many.assert_not_called()
 
     @staticmethod
-    def test_an_empty_config_drops_every_root(service, roots):
+    def test_an_empty_config_drops_every_root(*, service, roots):
         roots.list_all.side_effect = [[DOCS_ROOT, PHOTOS_ROOT], []]
 
         assert service.sync({}) == []
@@ -101,7 +96,7 @@ class TestSync:
         roots.upsert_many.assert_not_called()
 
     @staticmethod
-    def test_inserts_drops_and_updates_together(service, roots):
+    def test_inserts_drops_and_updates_together(*, service, roots):
         roots.list_all.side_effect = [
             [DOCS_ROOT, PHOTOS_ROOT],
             [MOVED_ROOT, MUSIC_ROOT],
@@ -119,7 +114,7 @@ class TestSync:
         )
 
     @staticmethod
-    def test_reconciles_inside_one_transaction(service, roots, transaction):
+    def test_reconciles_inside_one_transaction(*, service, roots, transaction):
         roots.list_all.side_effect = [[], [DOCS_ROOT]]
 
         service.sync({DOCS: DOCS_ROOT.path})
@@ -129,7 +124,9 @@ class TestSync:
         transaction.atomic.return_value.__exit__.assert_called_once()
 
     @staticmethod
-    def test_a_failing_write_propagates_so_the_transaction_rolls_back(service, roots):
+    def test_a_failing_write_propagates_so_the_transaction_rolls_back(
+        *, service, roots
+    ):
         roots.list_all.side_effect = [[], [DOCS_ROOT]]
         roots.upsert_many.side_effect = RuntimeError("the database went away")
 

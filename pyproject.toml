@@ -185,6 +185,16 @@ type = "forbidden"
 source_modules = ["acervus.inits"]
 forbidden_modules = ["acervus.edges"]
 
+# specs is reachable from inits only through mills: wiring a service that
+# validates through specs makes the chain reachable, but no module in inits
+# may name a specs module itself. allow_indirect_imports says exactly that.
+[[tool.importlinter.contracts]]
+name = "inits-specs-only-through-mills"
+type = "forbidden"
+source_modules = ["acervus.inits"]
+forbidden_modules = ["acervus.specs"]
+allow_indirect_imports = "True"
+
 
 [[tool.importlinter.contracts]]
 name = "mills"
