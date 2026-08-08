@@ -1,4 +1,4 @@
-"""Database engine creation and initialization."""
+"""Opening the SQLite file the index lives in."""
 
 from typing import TYPE_CHECKING
 
@@ -12,10 +12,12 @@ if TYPE_CHECKING:
     from sqlalchemy import Engine
 
 
-def create_engine_from_path(db_path: Path) -> Engine:
-    url = f"sqlite:///{db_path}"
-    return create_engine(url)
+def open_database(db_path: Path) -> Engine:
+    """Open the database at this path, creating the file and its tables.
 
-
-def init_db(engine: Engine) -> None:
+    Returns:
+        An engine over the SQLite file, ready for sessions.
+    """
+    engine = create_engine(f"sqlite:///{db_path}")
     Base.metadata.create_all(engine)
+    return engine

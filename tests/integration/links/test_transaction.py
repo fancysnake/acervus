@@ -82,6 +82,39 @@ class TestSessionTransaction:
         assert aliases_on_disk(engine) == [PHOTOS]
 
     @staticmethod
+    def test_an_interrupt_rolls_back(engine, session):
+        transaction = SessionTransaction(session)
+        roots = RootRepository(session)
+
+        def write_then_interrupt() -> None:
+            with transaction.atomic():
+                roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])
+                raise KeyboardInterrupt
+
+        with pytest.raises(KeyboardInterrupt):
+            write_then_interrupt()
+
+        assert aliases_on_disk(engine) == []
+
+    @staticmethod
+    def test_an_interrupted_write_never_reaches_a_later_block(engine, session):
+        transaction = SessionTransaction(session)
+        roots = RootRepository(session)
+
+        def write_then_interrupt() -> None:
+            with transaction.atomic():
+                roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])
+                raise KeyboardInterrupt
+
+        with pytest.raises(KeyboardInterrupt):
+            write_then_interrupt()
+
+        with transaction.atomic():
+            roots.upsert_many([{"alias": PHOTOS, "path": PHOTOS_PATH}])
+
+        assert aliases_on_disk(engine) == [PHOTOS]
+
+    @staticmethod
     def test_an_empty_block_commits_nothing(engine, session):
         transaction = SessionTransaction(session)
 

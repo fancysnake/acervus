@@ -15,6 +15,7 @@ TODO = Path("notes/todo.md")
 INBOX = Path("inbox.md")
 DEEP = Path("a/b/c/deep.txt")
 CONTENT = "hello"
+VANISHING = ("a.md", "b.md", "c.md")
 
 
 @pytest.fixture(name="reader")
@@ -93,6 +94,25 @@ class TestPathlibFilesystemReader:
 
         assert not info.relative_path.is_absolute()
         assert tmp_path / info.relative_path == tmp_path / TODO
+
+    @staticmethod
+    def test_a_broken_symlink_is_skipped(reader, tmp_path):
+        (tmp_path / "dangling").symlink_to(tmp_path / "gone")
+
+        assert not list(reader.walk(tmp_path))
+
+    @staticmethod
+    def test_a_file_that_vanishes_mid_walk_is_skipped(reader, tmp_path):
+        for name in VANISHING:
+            write(tmp_path, Path(name))
+        walked = reader.walk(tmp_path)
+        first = next(walked)
+
+        for name in VANISHING:
+            (tmp_path / name).unlink()
+
+        assert first.relative_path in {Path(name) for name in VANISHING}
+        assert not list(walked)
 
     @staticmethod
     def test_it_walks_lazily(reader, tmp_path):

@@ -3,13 +3,12 @@
 import pytest
 from sqlalchemy.orm import Session
 
-from acervus.links.db.sqlalchemy.engine import create_engine_from_path, init_db
+from acervus.links.db.sqlalchemy.engine import open_database
 
 
 @pytest.fixture(name="engine")
 def engine_fixture(tmp_path):
-    engine = create_engine_from_path(tmp_path / "acervus.db")
-    init_db(engine)
+    engine = open_database(tmp_path / "acervus.db")
     yield engine
     engine.dispose()
 

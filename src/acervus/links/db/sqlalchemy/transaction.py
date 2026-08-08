@@ -23,14 +23,18 @@ class SessionTransaction(TransactionProtocol):
 
     @contextmanager
     def atomic(self) -> Iterator[None]:
-        """Commit the session on a clean exit, roll it back on an exception.
+        """Commit the session on a clean exit, roll it back on anything else.
+
+        ``BaseException`` rather than ``Exception``: an interrupt or a
+        cancelled worker would otherwise leave the flushed writes pending on
+        the shared session, for the next block to commit as its own.
 
         Yields:
             Control to the caller, whose writes commit together.
         """
         try:
             yield
-        except Exception:
+        except BaseException:
             self._session.rollback()
             raise
         self._session.commit()

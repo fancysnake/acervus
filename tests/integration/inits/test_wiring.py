@@ -67,9 +67,36 @@ class TestRepositories:
         assert repositories.files.list_by_root(root.id) == []
 
     @staticmethod
-    def test_the_repositories_are_cached(repositories):
-        assert repositories.roots is repositories.roots
+    def test_the_session_is_opened_once(repositories):
         assert repositories.session is repositories.session
+
+
+class TestClosingTheContainer:
+    @staticmethod
+    def test_closing_an_unused_container_creates_nothing(db_path):
+        Repositories(db_path).close()
+
+        assert not db_path.exists()
+
+    @staticmethod
+    def test_closing_twice_does_nothing_the_second_time(db_path):
+        container = Repositories(db_path)
+        container.roots.list_all()
+
+        container.close()
+        container.close()
+
+        assert db_path.exists()
+
+    @staticmethod
+    def test_a_container_used_after_a_close_opens_a_new_session(db_path):
+        container = Repositories(db_path)
+        opened = container.session
+
+        container.close()
+
+        assert container.session is not opened
+        container.close()
 
 
 class TestServices:
