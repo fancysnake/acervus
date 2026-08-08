@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from acervus.links.fs.pathlib import PathlibFilesystemReader
+from acervus.links.fs.pathlib.reader import PathlibFilesystemReader
 
 TODO = Path("notes/todo.md")
 INBOX = Path("inbox.md")

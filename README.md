@@ -107,7 +107,7 @@ src/acervus/
   specs/               # business invariants
   mills/               # business logic
   links/db/sqlalchemy/ # models, engine, repositories, transaction
-  links/fs/            # the pathlib filesystem reader
+  links/fs/pathlib/    # the pathlib filesystem reader
   gates/tui/textual/   # the Textual app and its screens
   inits/               # config loading, DI, the entry point
   edges/               # infrastructure

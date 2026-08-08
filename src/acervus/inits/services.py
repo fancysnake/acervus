@@ -4,7 +4,7 @@ from contextlib import closing
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from acervus.links.fs.pathlib import PathlibFilesystemReader
+from acervus.links.fs.pathlib.reader import PathlibFilesystemReader
 from acervus.mills.file import ScanService
 from acervus.mills.mark import MarkService
 from acervus.mills.root import RootService
