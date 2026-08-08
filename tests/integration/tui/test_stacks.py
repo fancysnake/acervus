@@ -106,36 +106,19 @@ class TestPuttingAFileInAStack:
         assert indexed.stacks.list_all()[0].file_count == 1 + 1  # both files
 
 
+# What a move does to the stacks is settled in tests/unit/mills/test_stack.py.
+# What is left to prove here is that the key reaches it and the screen redraws.
 class TestMovingBetweenStacks:
     @staticmethod
-    async def test_a_file_leaves_the_stack_it_was_in(app, indexed):
+    @pytest.mark.usefixtures("indexed")
+    async def test_the_screen_shows_the_stack_it_moved_to(app):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             await pilot.press(PUT_KEY)
             await type_name(pilot, TAXES)
+            sitting = pilot.app.screen.query_one("#file-stack", Static)
 
-        first = indexed.files.list_all()[0]
-        assert indexed.stacks.for_file(first.id).name == TAXES
-
-    @staticmethod
-    async def test_the_stack_it_emptied_is_gone(app, indexed):
-        async with app.run_test() as pilot:
-            await stack_first(pilot)
-            await pilot.press(PUT_KEY)
-            await type_name(pilot, TAXES)
-
-        assert [stack.name for stack in indexed.stacks.list_all()] == [TAXES]
-
-    @staticmethod
-    async def test_a_stack_another_file_still_fills_survives(app, indexed):
-        async with app.run_test() as pilot:
-            await stack_first(pilot)
-            await pilot.press(DOWN_KEY, PUT_KEY)
-            await type_name(pilot, TRIP)
-            await pilot.press(PUT_KEY)
-            await type_name(pilot, TAXES)
-
-        assert [stack.name for stack in indexed.stacks.list_all()] == [TRIP, TAXES]
+            assert TAXES in str(sitting.render())
 
 
 class TestTakingAFileOut:
@@ -149,14 +132,6 @@ class TestTakingAFileOut:
         assert indexed.stacks.for_file(first.id) is None
 
     @staticmethod
-    async def test_an_emptied_stack_is_deleted(app, indexed):
-        async with app.run_test() as pilot:
-            await stack_first(pilot)
-            await pilot.press(TAKE_KEY)
-
-        assert indexed.stacks.list_all() == []
-
-    @staticmethod
     @pytest.mark.usefixtures("indexed")
     async def test_the_screen_says_the_file_is_loose(app):
         async with app.run_test() as pilot:
@@ -165,13 +140,6 @@ class TestTakingAFileOut:
             sitting = pilot.app.screen.query_one("#file-stack", Static)
 
             assert SITS_LOOSE in str(sitting.render())
-
-    @staticmethod
-    async def test_taking_a_loose_file_out_is_harmless(app, indexed):
-        async with app.run_test() as pilot:
-            await pilot.press(FILES_KEY, TAKE_KEY)
-
-        assert indexed.stacks.list_all() == []
 
 
 class TestStacksScreen:

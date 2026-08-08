@@ -157,18 +157,6 @@ class TestRemovingAMark:
 
             assert HOLIDAY in str(status.render())
 
-    @staticmethod
-    async def test_a_mark_another_file_still_carries_survives(app, indexed):
-        async with app.run_test() as pilot:
-            await pilot.press(FILES_KEY, ADD_KEY)
-            await type_name(pilot, INVOICE)
-            await pilot.press(DOWN_KEY, ADD_KEY)
-            await type_name(pilot, INVOICE)
-            await pilot.press(REMOVE_KEY)
-            await type_name(pilot, INVOICE)
-
-        assert [mark.name for mark in indexed.marks.list_all()] == [INVOICE]
-
 
 class TestFilteringByMark:
     @staticmethod

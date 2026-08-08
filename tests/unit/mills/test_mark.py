@@ -84,6 +84,8 @@ class TestAdd:
         service.add(FILE_ID, name=f"  {INVOICE}  ")
 
         marks.read_by_name.assert_called_once_with(INVOICE)
+        marks.create.assert_not_called()
+        marks.attach.assert_called_once_with(FILE_ID, mark_id=INVOICE_MARK.id)
 
     @staticmethod
     def test_a_bad_name_never_reaches_the_repository(*, service, marks, transaction):

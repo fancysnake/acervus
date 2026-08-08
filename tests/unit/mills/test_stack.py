@@ -186,4 +186,5 @@ class TestRemove:
         service.remove(FILE_ID)
 
         transaction.atomic.assert_called_once_with()
+        transaction.atomic.return_value.__enter__.assert_called_once_with()
         transaction.atomic.return_value.__exit__.assert_called_once()
