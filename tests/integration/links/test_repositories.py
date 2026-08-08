@@ -327,9 +327,10 @@ class TestFileRepositoryMarkFilter:
     def test_it_keeps_only_files_carrying_the_mark(roots, files, marks):
         root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
         todo, _ = files.upsert_many([a_file(root.id, TODO), a_file(root.id, INBOX)])
-        marks.attach(todo.id, mark_id=marks.create(INVOICE).id)
+        invoice = marks.create(INVOICE)
+        marks.attach(todo.id, mark_id=invoice.id)
 
-        listed = files.list_all(FileFilter(mark=INVOICE))
+        listed = files.list_all(FileFilter(mark_id=invoice.id))
 
         assert [file.relative_path for file in listed] == [TODO]
 
@@ -337,18 +338,19 @@ class TestFileRepositoryMarkFilter:
     def test_an_unused_mark_matches_nothing(roots, files, marks):
         root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
         files.upsert_many([a_file(root.id, TODO)])
-        marks.create(INVOICE)
+        invoice = marks.create(INVOICE)
 
-        assert files.list_all(FileFilter(mark=INVOICE)) == []
+        assert files.list_all(FileFilter(mark_id=invoice.id)) == []
 
     @staticmethod
     def test_a_file_is_listed_once_however_many_marks_it_carries(roots, files, marks):
         root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
         todo = files.upsert_many([a_file(root.id, TODO)])[0]
-        for name in (INVOICE, HOLIDAY):
-            marks.attach(todo.id, mark_id=marks.create(name).id)
+        invoice = marks.create(INVOICE)
+        for mark in (invoice, marks.create(HOLIDAY)):
+            marks.attach(todo.id, mark_id=mark.id)
 
-        assert len(files.list_all(FileFilter(mark=INVOICE))) == 1
+        assert len(files.list_all(FileFilter(mark_id=invoice.id))) == 1
 
     @staticmethod
     def test_unmarked_keeps_only_files_carrying_nothing(roots, files, marks):
@@ -356,7 +358,7 @@ class TestFileRepositoryMarkFilter:
         todo, _ = files.upsert_many([a_file(root.id, TODO), a_file(root.id, INBOX)])
         marks.attach(todo.id, mark_id=marks.create(INVOICE).id)
 
-        listed = files.list_all(FileFilter(mark=BARE))
+        listed = files.list_all(FileFilter(mark_id=BARE))
 
         assert [file.relative_path for file in listed] == [INBOX]
 
@@ -369,7 +371,7 @@ class TestFileRepositoryMarkFilter:
 
         marks.detach(todo.id, mark_id=mark.id)
 
-        assert len(files.list_all(FileFilter(mark=BARE))) == 1
+        assert len(files.list_all(FileFilter(mark_id=BARE))) == 1
 
     @staticmethod
     def test_the_root_and_mark_filters_combine(roots, files, marks):
@@ -383,9 +385,75 @@ class TestFileRepositoryMarkFilter:
         marks.attach(here.id, mark_id=mark.id)
         marks.attach(there.id, mark_id=mark.id)
 
-        listed = files.list_all(FileFilter(root_id=docs.id, mark=INVOICE))
+        listed = files.list_all(FileFilter(root_id=docs.id, mark_id=mark.id))
 
         assert [file.root_id for file in listed] == [docs.id]
+
+
+class TestFileRepositoryStackFilter:
+    @staticmethod
+    def test_it_keeps_only_files_sitting_in_the_stack(two_files, files, stacks):
+        todo, _ = two_files
+        trip = stacks.create(TRIP)
+        stacks.set_for_file(todo.id, stack_id=trip.id)
+
+        listed = files.list_all(FileFilter(stack_id=trip.id))
+
+        assert [file.relative_path for file in listed] == [TODO]
+
+    @staticmethod
+    @pytest.mark.usefixtures("two_files")
+    def test_an_empty_stack_matches_nothing(files, stacks):
+        trip = stacks.create(TRIP)
+
+        assert files.list_all(FileFilter(stack_id=trip.id)) == []
+
+    @staticmethod
+    def test_unstacked_keeps_only_files_sitting_in_none(two_files, files, stacks):
+        todo, _ = two_files
+        stacks.set_for_file(todo.id, stack_id=stacks.create(TRIP).id)
+
+        listed = files.list_all(FileFilter(stack_id=BARE))
+
+        assert [file.relative_path for file in listed] == [INBOX]
+
+    @staticmethod
+    def test_a_file_taken_out_counts_as_unstacked(two_files, files, stacks):
+        todo, _ = two_files
+        stacks.set_for_file(todo.id, stack_id=stacks.create(TRIP).id)
+
+        stacks.set_for_file(todo.id, stack_id=None)
+
+        assert len(files.list_all(FileFilter(stack_id=BARE))) == 1 + 1  # both loose
+
+    @staticmethod
+    def test_the_root_and_stack_filters_combine(roots, files, stacks):
+        docs, photos = roots.upsert_many(
+            [{"alias": DOCS, "path": DOCS_PATH}, {"alias": PHOTOS, "path": PHOTOS_PATH}]
+        )
+        here, there = files.upsert_many(
+            [a_file(docs.id, TODO), a_file(photos.id, TODO)]
+        )
+        trip = stacks.create(TRIP)
+        stacks.set_for_file(here.id, stack_id=trip.id)
+        stacks.set_for_file(there.id, stack_id=trip.id)
+
+        listed = files.list_all(FileFilter(root_id=docs.id, stack_id=trip.id))
+
+        assert [file.root_id for file in listed] == [docs.id]
+
+    @staticmethod
+    def test_a_stack_and_a_mark_narrow_together(two_files, files, marks, stacks):
+        todo, inbox = two_files
+        trip = stacks.create(TRIP)
+        invoice = marks.create(INVOICE)
+        stacks.set_for_file(todo.id, stack_id=trip.id)
+        stacks.set_for_file(inbox.id, stack_id=trip.id)
+        marks.attach(todo.id, mark_id=invoice.id)
+
+        listed = files.list_all(FileFilter(stack_id=trip.id, mark_id=invoice.id))
+
+        assert [file.relative_path for file in listed] == [TODO]
 
 
 class TestMarkRepository:

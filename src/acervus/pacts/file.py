@@ -19,8 +19,8 @@ class Bare(Enum):
 
 BARE = Bare.BARE
 
-# One narrowing of a listing: a name to match, BARE, or None for no narrowing.
-type Narrowing = str | Bare | None
+# One narrowing of a listing: an id to match, BARE, or None for no narrowing.
+type Narrowing = int | Bare | None
 
 
 class FileDTO(BaseModel):
@@ -48,15 +48,20 @@ class FileWrite(TypedDict):
 class FileFilter:
     """How a file listing is narrowed.
 
+    Every axis is keyed by id, so what a filter means does not move when a
+    mark or a stack is renamed, and the caller passes the identifier it
+    already holds rather than looking one up.
+
     An empty filter lists everything, and the narrowings combine. Each of
-    ``mark`` and ``stack`` is one choice with three outcomes: ``None`` does not
-    narrow at all, a name keeps the files carrying it or sitting in it, and
-    ``BARE`` keeps only the files that carry no mark, or sit in no stack.
+    ``mark_id`` and ``stack_id`` is one choice with three outcomes: ``None``
+    does not narrow at all, an id keeps the files carrying it or sitting in
+    it, and ``BARE`` keeps only the files that carry no mark, or sit in no
+    stack. ``root_id`` has no bare case, because every file has a root.
     """
 
     root_id: int | None = None
-    mark: Narrowing = None
-    stack: Narrowing = None
+    mark_id: Narrowing = None
+    stack_id: Narrowing = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,13 +87,6 @@ class FileRepositoryProtocol(Protocol):
 
     def delete_many(self, file_ids: Iterable[int]) -> None:
         """Delete the files with these ids."""
-
-
-class FileServiceProtocol(Protocol):
-    """Business operations on indexed files."""
-
-    def list_all(self, scope: FileFilter | None = None) -> list[FileDTO]:
-        """Return indexed files, narrowed by the filter when one is given."""
 
 
 class ScanServiceProtocol(Protocol):

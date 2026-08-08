@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, TypedDict
 from sqlalchemy import delete, select, tuple_
 from sqlalchemy.dialects.sqlite import insert
 
-from acervus.links.db.sqlalchemy.models import File, FileMark, Mark, Stack
+from acervus.links.db.sqlalchemy.models import File, FileMark
 from acervus.pacts.file import (
     Bare,
     FileDTO,
@@ -30,31 +30,27 @@ class _FileRow(TypedDict):
     mtime: float
 
 
-def _carrying(mark: str | Bare) -> ColumnElement[bool]:
+def _carrying(mark_id: int | Bare) -> ColumnElement[bool]:
     """Return the clause keeping files that carry this mark, or carry none.
 
     Returns:
         A boolean clause over ``File``.
     """
-    if mark is Bare.BARE:
-        return ~select(FileMark).where(FileMark.file_id == File.id).exists()
-    return (
-        select(FileMark)
-        .join(Mark, Mark.id == FileMark.mark_id)
-        .where(FileMark.file_id == File.id, Mark.name == mark)
-        .exists()
-    )
+    carried = select(FileMark).where(FileMark.file_id == File.id)
+    if mark_id is Bare.BARE:
+        return ~carried.exists()
+    return carried.where(FileMark.mark_id == mark_id).exists()
 
 
-def _sitting_in(stack: str | Bare) -> ColumnElement[bool]:
+def _sitting_in(stack_id: int | Bare) -> ColumnElement[bool]:
     """Return the clause keeping files in this stack, or in none at all.
 
     Returns:
         A boolean clause over ``File``.
     """
-    if stack is Bare.BARE:
+    if stack_id is Bare.BARE:
         return File.stack_id.is_(None)
-    return select(Stack).where(Stack.id == File.stack_id, Stack.name == stack).exists()
+    return File.stack_id == stack_id
 
 
 class FileRepository(FileRepositoryProtocol):
@@ -77,10 +73,10 @@ class FileRepository(FileRepositoryProtocol):
         statement = select(File).order_by(File.root_id, File.relative_path)
         if narrowed.root_id is not None:
             statement = statement.where(File.root_id == narrowed.root_id)
-        if narrowed.mark is not None:
-            statement = statement.where(_carrying(narrowed.mark))
-        if narrowed.stack is not None:
-            statement = statement.where(_sitting_in(narrowed.stack))
+        if narrowed.mark_id is not None:
+            statement = statement.where(_carrying(narrowed.mark_id))
+        if narrowed.stack_id is not None:
+            statement = statement.where(_sitting_in(narrowed.stack_id))
         return [
             FileDTO.model_validate(record)
             for record in self._session.scalars(statement).all()

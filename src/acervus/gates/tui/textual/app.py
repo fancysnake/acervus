@@ -12,7 +12,7 @@ from acervus.gates.tui.textual.stacks import StacksScreen
 if TYPE_CHECKING:
     from textual.binding import BindingType
 
-    from acervus.pacts.file import FileServiceProtocol, ScanServiceProtocol
+    from acervus.pacts.file import FileRepositoryProtocol, ScanServiceProtocol
     from acervus.pacts.mark import MarkServiceProtocol
     from acervus.pacts.root import RootServiceProtocol
     from acervus.pacts.stack import StackServiceProtocol
@@ -38,7 +38,7 @@ class AcervusApp(App[None]):
         *,
         roots: RootServiceProtocol,
         scan: ScanServiceProtocol,
-        files: FileServiceProtocol,
+        files: FileRepositoryProtocol,
         marks: MarkServiceProtocol,
         stacks: StackServiceProtocol,
     ) -> None:

@@ -4,13 +4,14 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from acervus.links.fs.pathlib import PathlibFilesystemReader
-from acervus.mills.file import FileService, ScanService
+from acervus.mills.file import ScanService
 from acervus.mills.mark import MarkService
 from acervus.mills.root import RootService
 from acervus.mills.stack import StackService
 
 if TYPE_CHECKING:
     from acervus.inits.repositories import Repositories
+    from acervus.links.db.sqlalchemy import FileRepository
 
 
 class Services:
@@ -26,10 +27,12 @@ class Services:
             roots=self._repositories.roots, transaction=self._repositories.transaction
         )
 
+    # Reading files needs no business rule of its own, so there is no file
+    # service to build: the screens read through the repository protocol.
     @cached_property
-    def files(self) -> FileService:
-        """Return the file service."""
-        return FileService(self._repositories.files)
+    def files(self) -> FileRepository:
+        """Return the file repository the screens read through."""
+        return self._repositories.files
 
     @cached_property
     def marks(self) -> MarkService:

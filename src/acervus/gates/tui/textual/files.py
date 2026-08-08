@@ -18,9 +18,9 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult
     from textual.binding import BindingType
 
-    from acervus.pacts.file import FileDTO, FileServiceProtocol, Narrowing
+    from acervus.pacts.file import FileDTO, FileRepositoryProtocol, Narrowing
     from acervus.pacts.mark import MarkServiceProtocol
-    from acervus.pacts.root import RootDTO, RootServiceProtocol
+    from acervus.pacts.root import RootServiceProtocol
     from acervus.pacts.stack import StackServiceProtocol
 
 NO_FILES_MESSAGE = "No files indexed. Scan a root first."
@@ -31,7 +31,10 @@ UNMARKED = "unmarked"
 ANY_STACK = "any stack"
 UNSTACKED_ONLY = "unstacked"
 FILTER_LABEL = "Showing: {roots}, {marks}, {stacks}"
-UNKNOWN_ALIAS = "?"
+UNKNOWN = "?"  # a root, mark or stack the screen has no name for
+ROOTS = "roots"
+MARKS = "marks"
+STACKS = "stacks"
 ADD_PROMPT = "Mark to add:"
 REMOVE_PROMPT = "Mark to remove:"
 MARKED = "Marked {path} {name}."
@@ -72,7 +75,7 @@ class FilesScreen(Screen[None]):
         self,
         *,
         roots: RootServiceProtocol,
-        files: FileServiceProtocol,
+        files: FileRepositoryProtocol,
         marks: MarkServiceProtocol,
         stacks: StackServiceProtocol,
     ) -> None:
@@ -81,9 +84,11 @@ class FilesScreen(Screen[None]):
         self._files = files
         self._marks = marks
         self._stacks = stacks
-        self._listed: list[RootDTO] = []
         self._shown: list[FileDTO] = []
         self._scope = FileFilter()
+        # The filter is keyed by id; this is what the filter line calls each of
+        # them, one map per axis.
+        self._named: dict[str, dict[int, str]] = {ROOTS: {}, MARKS: {}, STACKS: {}}
 
     # The widget tree does not depend on the data, so query_one never has to.
     @override
@@ -98,7 +103,7 @@ class FilesScreen(Screen[None]):
         yield Footer()
 
     def on_mount(self) -> None:
-        self._listed = self._roots.list_all()
+        self._named[ROOTS] = {root.id: root.alias for root in self._roots.list_all()}
         self._refresh()
 
     def on_data_table_row_highlighted(self) -> None:
@@ -107,9 +112,13 @@ class FilesScreen(Screen[None]):
 
     def action_cycle_filter(self) -> None:
         """Step the root filter on by one, wrapping back to all roots."""
-        if not self._listed:
+        named = self._named[ROOTS] = {
+            root.id: root.alias for root in self._roots.list_all()
+        }
+        if not named:
             return
-        steps: list[int | None] = [None, *(root.id for root in self._listed)]
+        # No bare step: every file has a root, so there is no rootless case.
+        steps: list[int | None] = [None, *named]
         self._scope = replace(
             self._scope, root_id=self._next(steps, self._scope.root_id)
         )
@@ -117,24 +126,32 @@ class FilesScreen(Screen[None]):
 
     def action_cycle_mark(self) -> None:
         """Step the mark filter on: any mark, then each mark, then unmarked."""
-        steps = self._steps(mark.name for mark in self._marks.list_all())
-        self._scope = replace(self._scope, mark=self._next(steps, self._scope.mark))
+        named = self._named[MARKS] = {
+            mark.id: mark.name for mark in self._marks.list_all()
+        }
+        self._scope = replace(
+            self._scope, mark_id=self._next(self._steps(named), self._scope.mark_id)
+        )
         self._refresh()
 
     def action_cycle_stack(self) -> None:
         """Step the stack filter on: any stack, then each stack, then unstacked."""
-        steps = self._steps(stack.name for stack in self._stacks.list_all())
-        self._scope = replace(self._scope, stack=self._next(steps, self._scope.stack))
+        named = self._named[STACKS] = {
+            stack.id: stack.name for stack in self._stacks.list_all()
+        }
+        self._scope = replace(
+            self._scope, stack_id=self._next(self._steps(named), self._scope.stack_id)
+        )
         self._refresh()
 
     @staticmethod
-    def _steps(names: Iterable[str]) -> list[Narrowing]:
-        """Return the cycle: everything, then each name, then only the bare ones.
+    def _steps(ids: Iterable[int]) -> list[Narrowing]:
+        """Return the cycle: everything, then each one, then only the bare ones.
 
         Returns:
             One step per stop, starting at the unfiltered one.
         """
-        return [None, *names, BARE]
+        return [None, *ids, BARE]
 
     @staticmethod
     def _next[T](steps: list[T], current: T) -> T:
@@ -233,7 +250,7 @@ class FilesScreen(Screen[None]):
         sitting.update(SITS_LOOSE if stack is None else SITS_IN.format(name=stack.name))
 
     def _refresh(self) -> None:
-        by_id = {root.id: root.alias for root in self._listed}
+        by_id = self._named[ROOTS]
         self._shown = self._files.list_all(self._scope)
 
         table = self.query_one("#files", DataTable)
@@ -242,7 +259,7 @@ class FilesScreen(Screen[None]):
             columns=("Root", "Path", "Size"),
             rows=[
                 (
-                    by_id.get(file.root_id, UNKNOWN_ALIAS),
+                    by_id.get(file.root_id, UNKNOWN),
                     str(file.relative_path),
                     str(file.size),
                 )
@@ -258,19 +275,27 @@ class FilesScreen(Screen[None]):
         root_id = self._scope.root_id
         self.query_one("#file-filter", Static).update(
             FILTER_LABEL.format(
-                roots=ALL_ROOTS if root_id is None else by_id[root_id],
+                roots=ALL_ROOTS if root_id is None else by_id.get(root_id, UNKNOWN),
                 marks=self._scope_label(
-                    self._scope.mark, any_label=ANY_MARK, bare_label=UNMARKED
+                    self._scope.mark_id,
+                    names=self._named[MARKS],
+                    any_label=ANY_MARK,
+                    bare_label=UNMARKED,
                 ),
                 stacks=self._scope_label(
-                    self._scope.stack, any_label=ANY_STACK, bare_label=UNSTACKED_ONLY
+                    self._scope.stack_id,
+                    names=self._named[STACKS],
+                    any_label=ANY_STACK,
+                    bare_label=UNSTACKED_ONLY,
                 ),
             )
         )
         self._show_carried()
 
     @staticmethod
-    def _scope_label(scope: Narrowing, *, any_label: str, bare_label: str) -> str:
+    def _scope_label(
+        scope: Narrowing, *, names: dict[int, str], any_label: str, bare_label: str
+    ) -> str:
         """Return the word describing one narrowing on the filter line.
 
         Returns:
@@ -281,5 +306,5 @@ class FilesScreen(Screen[None]):
                 return any_label
             case Bare.BARE:
                 return bare_label
-            case name:
-                return name
+            case chosen:
+                return names.get(chosen, UNKNOWN)

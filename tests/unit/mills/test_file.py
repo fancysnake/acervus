@@ -10,8 +10,8 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from acervus.mills.file import FileService, ScanService
-from acervus.pacts.file import FileDTO, FileFilter, FileRepositoryProtocol, ScanResult
+from acervus.mills.file import ScanService
+from acervus.pacts.file import FileDTO, FileRepositoryProtocol, ScanResult
 from acervus.pacts.filesystem import FileInfo, FilesystemReaderProtocol
 from acervus.pacts.root import (
     RootDTO,
@@ -44,7 +44,6 @@ INBOX_INDEXED = FileDTO(
 
 NOTES_WRITE = {"root_id": ROOT.id, "relative_path": NOTES, "size": SIZE, "mtime": MTIME}
 INBOX_WRITE = {"root_id": ROOT.id, "relative_path": INBOX, "size": SIZE, "mtime": MTIME}
-ROOT_SCOPE = FileFilter(root_id=ROOT.id)
 NOTES_RESIZED_WRITE = {
     "root_id": ROOT.id,
     "relative_path": NOTES,
@@ -85,30 +84,6 @@ def service_fixture(files, roots, filesystem, transaction):
     return ScanService(
         files=files, roots=roots, filesystem=filesystem, transaction=transaction
     )
-
-
-class TestFileServiceListAll:
-    @staticmethod
-    def test_it_asks_the_repository_for_everything(files):
-        files.list_all.return_value = [NOTES_INDEXED, INBOX_INDEXED]
-
-        assert FileService(files).list_all() == [NOTES_INDEXED, INBOX_INDEXED]
-
-        files.list_all.assert_called_once_with(None)
-
-    @staticmethod
-    def test_it_passes_a_root_filter_through(files):
-        files.list_all.return_value = [NOTES_INDEXED]
-
-        assert FileService(files).list_all(ROOT_SCOPE) == [NOTES_INDEXED]
-
-        files.list_all.assert_called_once_with(ROOT_SCOPE)
-
-    @staticmethod
-    def test_an_empty_index_lists_nothing(files):
-        files.list_all.return_value = []
-
-        assert FileService(files).list_all() == []
 
 
 class TestScan:

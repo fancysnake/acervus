@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult
     from textual.binding import BindingType
 
-    from acervus.pacts.file import FileServiceProtocol
+    from acervus.pacts.file import FileRepositoryProtocol
     from acervus.pacts.stack import StackServiceProtocol, StackSummary
 
 NO_STACKS_MESSAGE = "No stacks yet. Put a file in one from the files screen."
@@ -26,7 +26,7 @@ class StacksScreen(Screen[None]):
     BINDINGS: ClassVar[list[BindingType]] = [("escape", "app.pop_screen", "Back")]
 
     def __init__(
-        self, *, stacks: StackServiceProtocol, files: FileServiceProtocol
+        self, *, stacks: StackServiceProtocol, files: FileRepositoryProtocol
     ) -> None:
         super().__init__()
         self._stacks = stacks
@@ -81,7 +81,7 @@ class StacksScreen(Screen[None]):
         if stack.id not in self._held:
             self._held[stack.id] = [
                 str(file.relative_path)
-                for file in self._files.list_all(FileFilter(stack=stack.name))
+                for file in self._files.list_all(FileFilter(stack_id=stack.id))
             ]
         return self._held[stack.id]
 
