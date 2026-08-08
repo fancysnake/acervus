@@ -14,7 +14,9 @@ Python 3.14, Poetry for dependencies, mise for tooling and tasks.
 
 The MVP is complete. The entry point is `acervus.inits.wiring:main` (`pyproject.toml`), which loads config, reconciles the configured roots against the index, and launches a **Textual TUI** (`acervus.gates.tui.textual.app.AcervusApp`). Click is not a dependency; `textual` is.
 
-Every layer but `edges` is populated. `pacts` holds the contracts for four nouns (`root`, `file`, `mark`, `stack`) alongside the `config`, `transaction` and `filesystem` ports. `specs` holds the mark and stack name invariants. `mills` holds five services — `RootService`, `FileService`, `ScanService`, `MarkService`, `StackService`. `links` holds the SQLAlchemy models, engine, repositories and transaction, plus the pathlib filesystem reader. `gates` holds four TUI screens (roots, files, marks, stacks) and two modal name prompts. `inits` holds `load_config` and the `Repositories` / `Services` containers, which is what the TUI receives — no config and no container cross that boundary.
+Every layer but `edges` is populated. `pacts` holds the contracts for four nouns (`root`, `file`, `mark`, `stack`) alongside the `config`, `transaction` and `filesystem` ports. `specs` holds the mark and stack name invariants. `mills` holds four services — `RootService`, `ScanService`, `MarkService`, `StackService`. There is no file service: reading files carries no business rule, so the screens read through `FileRepositoryProtocol`, and adding one back is only worth it when a rule turns up to live in it. `links` holds the SQLAlchemy models, engine, repositories and transaction, plus the pathlib filesystem reader. `gates` holds four TUI screens (roots, files, marks, stacks) and one modal name prompt. `inits` holds `load_config`, the `Repositories` / `Services` containers, and `IsolatedScan`, which gives a scan a session of its own so the roots screen can run it on a thread. The TUI receives services — no config and no container cross that boundary.
+
+Integrity is the database's: every foreign key declares `ondelete`, and `open_database` switches `foreign_keys` on (and `journal_mode=WAL`, so the interface reading does not block a scan writing). Deleting a root, a mark or a stack is one statement; nothing hand-rolls a cascade.
 
 `FEATURE_PLAN.md` records how it was built, step by step. Every step in it is done; it is history, not a to-do list.
 
@@ -56,10 +58,10 @@ Seven layers, with import direction enforced by import-linter contracts in `pypr
 | **mills** | pacts, specs                | pure business logic; dependencies via constructor |
 | **links** | pacts                       | data access — SQLAlchemy models, engine, repositories |
 | **gates** | pacts                       | entry points — the Textual TUI                    |
-| **inits** | pacts, specs, mills, links, gates | config loading, DI, the `main()` entry point |
+| **inits** | pacts, mills, links, gates, and specs only through mills | config loading, DI, the `main()` entry point |
 | **edges** | nothing                     | infrastructure boundary (currently empty)         |
 
-Three consequences carry the weight. **Only `inits` may wire `links` and `gates` together** — gates and mills cannot import `links` at all, so a TUI screen can never touch a SQLAlchemy model; it receives DTOs and services handed down from `inits`. **Neither `gates` nor `links` may import `mills`** — both are typed against protocols in `pacts` and receive concrete implementations by injection, so nothing at the edge names a concrete service. And **`specs` is for `mills` to call** — it holds pure business invariants, not configuration. `inits` is permitted to import it only because the contracts count indirect chains: wiring a service that validates through `specs` makes `inits → mills → specs` reachable, so forbidding it would forbid `specs` from being used at all. Nothing in `inits` should name a `specs` module directly. `AcervusConfig` lives in `pacts` because it is a data contract crossing inits → gates. `edges` is outside the import graph; nothing may import it.
+Three consequences carry the weight. **Only `inits` may wire `links` and `gates` together** — gates and mills cannot import `links` at all, so a TUI screen can never touch a SQLAlchemy model; it receives DTOs and services handed down from `inits`. **Neither `gates` nor `links` may import `mills`** — both are typed against protocols in `pacts` and receive concrete implementations by injection, so nothing at the edge names a concrete service. And **`specs` is for `mills` to call** — it holds pure business invariants, not configuration. `inits` is permitted to import it only because the contracts count indirect chains: wiring a service that validates through `specs` makes `inits → mills → specs` reachable, so forbidding it would forbid `specs` from being used at all. No module in `inits` may name a `specs` module directly, and the `inits-specs-only-through-mills` contract (`allow_indirect_imports`) fails the build if one does. `AcervusConfig` lives in `pacts` because it is a data contract crossing inits → gates. `edges` is outside the import graph; nothing may import it.
 
 Seven `inside-*` independence contracts sit on top of the seven layer contracts. The ones with teeth are `inside-pacts` and `inside-mills`: **sibling modules inside `pacts` and inside `mills` may not import each other**, so every noun module stands alone. A pacts module may be named after a port rather than a noun when its contract belongs to the port (`pacts/config.py`, `pacts/transaction.py`, `pacts/filesystem.py`).
 
@@ -79,9 +81,10 @@ Ruff runs `select = ["ALL"]` in preview mode, ignoring only `CPY` and `D1`. Test
 
 ## Testing
 
-The layer under test dictates the test type. `tests/unit/` mirrors `src/`; `tests/integration/` covers everything that touches IO. `asyncio_mode = "auto"`, so async tests need no marker.
+The layer under test dictates the test type. Both trees mirror `src/`, down to the adapter (`tests/integration/links/db/repositories/test_mark.py`); `tests/integration/` covers everything that touches IO. `asyncio_mode = "auto"`, so async tests need no marker.
 
-- Group tests in classes; test methods are `@staticmethod`.
+- Group tests in classes; test methods are `@staticmethod`, and take their fixtures **keyword-only** (`def test_x(*, roots, files)`). Pytest fills fixtures in by name, so keyword-only says what is happening and keeps the positional-argument limit meaningful without a `pylint: disable`.
+- An integration test of a screen proves the keystroke reaches the service and the screen redraws. What the service then does is settled in its `tests/unit/mills/` test — do not assert it again through a pilot.
 - Unit tests cover `mills`, `pacts`, `specs` and pure functions — no filesystem, no database, no entry points. Mock at the highest level and assert every mock call.
 - Integration tests cover `links`, `gates` and the IO-bearing parts of `inits`, against real infrastructure: repositories against a real SQLite file, the TUI via Textual's `app.run_test()` pilot. Test repositories directly, not only through a screen.
 - Never raise coverage on an IO-bearing layer with a mock-everything unit test.
@@ -89,5 +92,6 @@ The layer under test dictates the test type. `tests/unit/` mirrors `src/`; `test
 
 ## Conventions
 
+- A screen's `compose` yields the same widget tree every time and reads nothing; data is loaded in `on_mount` and an empty state is a `display` toggle, so `query_one` never depends on what came back.
 - Never add `noqa`, `type: ignore`, `pylint`, or `pragma` directives without explicit per-case approval.
 - Never modify, create, or delete configuration files without explicit per-case approval.

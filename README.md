@@ -101,7 +101,7 @@ conventions.
 
 ### Source layout
 
-```
+```text
 src/acervus/
   pacts/               # protocols, DTOs, exceptions, AcervusConfig
   specs/               # business invariants
