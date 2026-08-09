@@ -36,6 +36,13 @@ class TestFileRepository:
         assert isinstance(written[0], FileDTO)
         assert {file.relative_path for file in written} == {TODO, INBOX}
 
+    # Scanning a root holding no files writes nothing, so the empty write is
+    # reachable.
+    @staticmethod
+    def test_upsert_many_writes_nothing_when_given_nothing(*, files):
+        assert files.upsert_many([]) == []
+        assert files.list_all() == []
+
     @staticmethod
     def test_upsert_many_updates_size_and_mtime(*, a_file, roots, files):
         root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]

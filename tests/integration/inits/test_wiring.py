@@ -6,8 +6,11 @@ from pathlib import Path
 
 import pytest
 
+from acervus.gates.tui.textual.app import AcervusApp
+from acervus.inits import config as config_module
 from acervus.inits.repositories import Repositories
 from acervus.inits.services import Services
+from acervus.inits.wiring import main
 from acervus.links.db.sqlalchemy import (
     FileRepository,
     RootRepository,
@@ -23,6 +26,13 @@ ARCHIVE_PATH = Path("/home/user/archive")
 CONTENT = "hello"
 LONGER = "hello again, and then some"
 INBOX = "inbox.md"
+USABLE_TOML = """\
+[acervus]
+db_path = "{db_path}"
+
+[acervus.roots]
+notes = "{tree}"
+"""
 
 
 @pytest.fixture(name="db_path")
@@ -47,6 +57,26 @@ def tree_fixture(tmp_path):
     tree.mkdir()
     (tree / INBOX).write_text(CONTENT)
     return tree
+
+
+@pytest.fixture(name="_usable_config")
+def usable_config_fixture(*, monkeypatch, tmp_path, db_path, tree):
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(USABLE_TOML.format(db_path=db_path, tree=tree))
+    monkeypatch.setattr(config_module, "DEFAULT_CONFIG_PATH", config_path)
+
+
+# Running the interface would take over the terminal, so the entry point is
+# followed up to the point where it hands over, and what it hands over is kept.
+@pytest.fixture(name="runs")
+def runs_fixture(monkeypatch):
+    started: list[AcervusApp] = []
+
+    def record(app):
+        started.append(app)
+
+    monkeypatch.setattr(AcervusApp, "run", record)
+    return started
 
 
 class TestRepositories:
@@ -185,3 +215,31 @@ class TestScanningOffTheCallersThread:
             pytest.raises(RootUnavailableError),
         ):
             pool.submit(services.scan.scan, NOTES).result()
+
+
+# The whole entry point, from the config file down to the app it hands over to.
+class TestStartingWithAUsableConfig:
+    @staticmethod
+    @pytest.mark.usefixtures("_usable_config")
+    def test_it_runs_the_app(*, runs):
+        main()
+
+        assert len(runs) == 1
+
+    @staticmethod
+    @pytest.mark.usefixtures("_usable_config", "runs")
+    def test_it_reconciles_the_configured_roots(*, db_path):
+        main()
+
+        with closing(Repositories(db_path)) as reopened:
+            assert [root.alias for root in reopened.roots.list_all()] == [NOTES]
+
+    @staticmethod
+    @pytest.mark.usefixtures("_usable_config", "runs")
+    def test_it_indexes_nothing_until_a_scan(*, db_path, tree):
+        main()
+
+        with closing(Repositories(db_path)) as reopened:
+            root = reopened.roots.read_by_alias(NOTES)
+            assert root.path == tree
+            assert reopened.files.list_by_root(root.id) == []

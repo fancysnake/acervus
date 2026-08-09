@@ -113,6 +113,15 @@ class TestAddingAMark:
         assert indexed.marks.list_all() == []
 
     @staticmethod
+    async def test_an_empty_index_is_never_asked_for_a_name(app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, ADD_KEY)
+            await pilot.pause()
+
+            assert not pilot.app.screen.query("#prompt")
+            assert pilot.app.screen.query("#files")
+
+    @staticmethod
     async def test_a_bad_name_is_reported_and_not_stored(app, indexed):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)

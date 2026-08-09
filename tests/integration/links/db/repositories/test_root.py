@@ -36,6 +36,12 @@ class TestRootRepository:
         assert isinstance(written[0], RootDTO)
         assert written[0].path == DOCS_PATH
 
+    # A config naming no roots syncs nothing, so the empty write is reachable.
+    @staticmethod
+    def test_upsert_many_writes_nothing_when_given_nothing(*, roots):
+        assert roots.upsert_many([]) == []
+        assert roots.list_all() == []
+
     @staticmethod
     def test_upsert_many_updates_an_existing_alias(*, roots):
         first = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])

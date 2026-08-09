@@ -141,6 +141,16 @@ class TestTakingAFileOut:
 
             assert SITS_LOOSE in str(sitting.render())
 
+    @staticmethod
+    async def test_an_empty_index_has_nothing_to_take_out(app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, TAKE_KEY)
+            status = pilot.app.screen.query_one("#status", Static)
+            sitting = pilot.app.screen.query_one("#file-stack", Static)
+
+            assert not str(status.render())
+            assert SITS_LOOSE in str(sitting.render())
+
 
 class TestStacksScreen:
     @staticmethod

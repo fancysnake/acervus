@@ -152,6 +152,15 @@ class TestFilesScreen:
             assert ALL_ROOTS in str(label.render())
 
     @staticmethod
+    async def test_the_filter_stays_put_when_no_root_is_indexed(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY)
+            await pilot.press(FILTER_KEY)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert ALL_ROOTS in str(label.render())
+
+    @staticmethod
     async def test_back_returns_to_the_roots(*, app, services, trees):
         index(services, trees)
 
