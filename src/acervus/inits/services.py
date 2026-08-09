@@ -51,7 +51,7 @@ class Services:
 
     @cached_property
     def roots(self) -> RootService:
-        """Return the root service."""
+        """The root service."""
         return RootService(
             roots=self._repositories.roots, transaction=self._repositories.transaction
         )
@@ -60,24 +60,24 @@ class Services:
     # service to build: the screens read through the repository protocol.
     @cached_property
     def files(self) -> FileRepository:
-        """Return the file repository the screens read through."""
+        """The file repository the screens read through."""
         return self._repositories.files
 
     @cached_property
     def marks(self) -> MarkService:
-        """Return the mark service."""
+        """The mark service."""
         return MarkService(
             marks=self._repositories.marks, transaction=self._repositories.transaction
         )
 
     @cached_property
     def stacks(self) -> StackService:
-        """Return the stack service."""
+        """The stack service."""
         return StackService(
             stacks=self._repositories.stacks, transaction=self._repositories.transaction
         )
 
     @cached_property
     def scan(self) -> IsolatedScan:
-        """Return the scan service, reading the filesystem with pathlib."""
+        """The scan service, reading the filesystem with pathlib."""
         return IsolatedScan(self._repositories)

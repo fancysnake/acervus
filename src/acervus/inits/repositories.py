@@ -36,7 +36,7 @@ class Repositories:
 
     @property
     def session(self) -> Session:
-        """Return the session every repository here shares, creating the database."""
+        """The session every repository here shares, creating the database."""
         if self._session is None:
             self._db_path.parent.mkdir(parents=True, exist_ok=True)
             self._engine = open_database(self._db_path)
@@ -71,25 +71,25 @@ class Repositories:
 
     @property
     def roots(self) -> RootRepository:
-        """Return the root repository."""
+        """The root repository."""
         return RootRepository(self.session)
 
     @property
     def files(self) -> FileRepository:
-        """Return the file repository."""
+        """The file repository."""
         return FileRepository(self.session)
 
     @property
     def marks(self) -> MarkRepository:
-        """Return the mark repository."""
+        """The mark repository."""
         return MarkRepository(self.session)
 
     @property
     def stacks(self) -> StackRepository:
-        """Return the stack repository."""
+        """The stack repository."""
         return StackRepository(self.session)
 
     @property
     def transaction(self) -> SessionTransaction:
-        """Return the transaction boundary over the shared session."""
+        """The transaction boundary over the shared session."""
         return SessionTransaction(self.session)
