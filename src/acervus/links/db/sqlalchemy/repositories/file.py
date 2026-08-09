@@ -1,5 +1,6 @@
 """The file repository, backing the pacts protocol with SQLAlchemy."""
 
+from itertools import batched
 from typing import TYPE_CHECKING, TypedDict
 
 from sqlalchemy import delete, select, tuple_
@@ -19,6 +20,13 @@ if TYPE_CHECKING:
 
     from sqlalchemy import ColumnElement
     from sqlalchemy.orm import Session
+
+
+# SQLite compiles in a ceiling on how many parameters one statement may bind —
+# 999 in builds before 3.32 — and a root holding thousands of files walks past
+# it in a single scan. Every statement that spans files goes out in batches
+# this wide, so the widest row here still fits: 200 files bind 800 parameters.
+BATCH = 200
 
 
 class _FileRow(TypedDict):
@@ -94,7 +102,7 @@ class FileRepository(FileRepositoryProtocol):
         return [FileDTO.model_validate(record) for record in records]
 
     def upsert_many(self, files: Iterable[FileWrite]) -> list[FileDTO]:
-        """Insert or update files by root and relative path.
+        """Insert or update files by root and relative path, a batch at a time.
 
         Returns:
             The written files, in the order they were given.
@@ -111,13 +119,12 @@ class FileRepository(FileRepositoryProtocol):
         if not wanted:
             return []
         upsert = insert(File)
-        self._session.execute(
-            upsert.on_conflict_do_update(
-                index_elements=[File.root_id, File.relative_path],
-                set_={"size": upsert.excluded.size, "mtime": upsert.excluded.mtime},
-            ),
-            wanted,
+        statement = upsert.on_conflict_do_update(
+            index_elements=[File.root_id, File.relative_path],
+            set_={"size": upsert.excluded.size, "mtime": upsert.excluded.mtime},
         )
+        for batch in batched(wanted, BATCH, strict=False):
+            self._session.execute(statement, list(batch))
         self._session.flush()
         return [FileDTO.model_validate(record) for record in self._read(wanted)]
 
@@ -128,21 +135,25 @@ class FileRepository(FileRepositoryProtocol):
             One record per wanted root and relative path.
         """
         keys = [(file["root_id"], file["relative_path"]) for file in wanted]
-        # populate_existing: the upsert went round the session, so a record it
-        # changed is still in the identity map holding the size it had before.
-        written = {
-            (record.root_id, record.relative_path): record
-            for record in self._session.scalars(
+        written: dict[tuple[int, str], File] = {}
+        for batch in batched(keys, BATCH, strict=False):
+            # populate_existing: the upsert went round the session, so a record
+            # it changed is still in the identity map holding the size it had
+            # before.
+            records = self._session.scalars(
                 select(File)
-                .where(tuple_(File.root_id, File.relative_path).in_(keys))
+                .where(tuple_(File.root_id, File.relative_path).in_(batch))
                 .execution_options(populate_existing=True)
             ).all()
-        }
+            written.update(
+                ((record.root_id, record.relative_path), record) for record in records
+            )
         return [written[key] for key in keys]
 
     def delete_many(self, file_ids: Iterable[int]) -> None:
-        """Delete the files with these ids."""
-        self._session.execute(delete(File).where(File.id.in_(list(file_ids))))
+        """Delete the files with these ids, a batch at a time."""
+        for batch in batched(file_ids, BATCH, strict=False):
+            self._session.execute(delete(File).where(File.id.in_(batch)))
         self._session.flush()
         # The database cascaded the file_marks rows away without telling the
         # session, so anything it still holds from before is out of date.

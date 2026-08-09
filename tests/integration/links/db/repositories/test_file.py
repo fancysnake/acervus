@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from acervus.links.db.sqlalchemy.models import FileMark
+from acervus.links.db.sqlalchemy.repositories.file import BATCH
 from acervus.pacts.file import BARE, FileDTO, FileFilter
 
 DOCS = "docs"
@@ -21,6 +22,16 @@ UNKNOWN_ID = 404
 INVOICE = "invoice"
 HOLIDAY = "holiday"
 TRIP = "iceland trip"
+SPANNING = BATCH * 2 + 1  # two full statements and a remainder
+
+
+def _spanning_paths() -> list[Path]:
+    """Return more paths than one statement can bind parameters for.
+
+    Returns:
+        Paths that sort the way they are built, so order is assertable.
+    """
+    return [Path(f"notes/{index:04d}.md") for index in range(SPANNING)]
 
 
 class TestFileRepository:
@@ -313,3 +324,51 @@ class TestFileRepositoryStackFilter:
         listed = files.list_all(FileFilter(stack_id=trip.id, mark_id=invoice.id))
 
         assert [file.relative_path for file in listed] == [TODO]
+
+
+# A scan of a real root hands over far more files than SQLite will bind
+# parameters for in one statement, so each of these writes spans several.
+class TestWritingMoreFilesThanOneStatementHolds:
+    @staticmethod
+    def test_upsert_many_writes_every_batch(*, a_file, roots, files):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+
+        written = files.upsert_many(
+            [a_file(root.id, path) for path in _spanning_paths()]
+        )
+
+        assert len(written) == SPANNING
+        assert len(files.list_by_root(root.id)) == SPANNING
+
+    @staticmethod
+    def test_upsert_many_keeps_the_order_it_was_given(*, a_file, roots, files):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        paths = list(reversed(_spanning_paths()))
+
+        written = files.upsert_many([a_file(root.id, path) for path in paths])
+
+        assert [file.relative_path for file in written] == paths
+
+    @staticmethod
+    def test_upsert_many_updates_across_batches(*, a_file, roots, files):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        paths = _spanning_paths()
+        files.upsert_many([a_file(root.id, path) for path in paths])
+
+        rewritten = files.upsert_many(
+            [a_file(root.id, path, size=GROWN_SIZE) for path in paths]
+        )
+
+        assert {file.size for file in rewritten} == {GROWN_SIZE}
+        assert len(files.list_by_root(root.id)) == SPANNING
+
+    @staticmethod
+    def test_delete_many_empties_every_batch(*, a_file, roots, files):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        written = files.upsert_many(
+            [a_file(root.id, path) for path in _spanning_paths()]
+        )
+
+        files.delete_many([file.id for file in written])
+
+        assert files.list_by_root(root.id) == []
