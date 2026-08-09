@@ -1,6 +1,10 @@
 [acervus]
 db_path = "~/.local/share/acervus/acervus.db"
 
+# Glob patterns a scan skips, matched against one path component at a time.
+# Naming this replaces the default below rather than adding to it.
+# ignore = [".git", ".venv", "node_modules", "__pycache__"]
+
 [acervus.roots]
 # docs = "/home/user/docs"
 # photos = "/home/user/photos"

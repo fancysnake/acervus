@@ -11,6 +11,10 @@ INBOX = Path("inbox.md")
 DEEP = Path("a/b/c/deep.txt")
 CONTENT = "hello"
 VANISHING = ("a.md", "b.md", "c.md")
+VENV = ".venv"
+BURIED = Path(".venv/lib/site-packages/thing.py")
+NESTED_VENV = Path("project/.venv/pyvenv.cfg")
+CACHED = Path("notes/todo.pyc")
 
 
 @pytest.fixture(name="reader")
@@ -110,6 +114,14 @@ class TestPathlibFilesystemReader:
         assert not list(walked)
 
     @staticmethod
+    def test_nothing_is_ignored_unless_a_pattern_says_so(*, reader, tmp_path):
+        write(tmp_path, BURIED)
+
+        found = [info.relative_path for info in reader.walk(tmp_path)]
+
+        assert found == [BURIED]
+
+    @staticmethod
     def test_it_walks_lazily(*, reader, tmp_path):
         write(tmp_path, TODO)
         walked = reader.walk(tmp_path)
@@ -117,3 +129,58 @@ class TestPathlibFilesystemReader:
         write(tmp_path, INBOX)
 
         assert {info.relative_path for info in walked} == {TODO, INBOX}
+
+
+class TestIgnoringWhatTheIndexShouldNotHold:
+    @staticmethod
+    def test_a_named_directory_is_skipped_whole(*, tmp_path):
+        write(tmp_path, BURIED)
+        write(tmp_path, INBOX)
+
+        found = [
+            info.relative_path
+            for info in PathlibFilesystemReader([VENV]).walk(tmp_path)
+        ]
+
+        assert found == [INBOX]
+
+    @staticmethod
+    def test_a_pattern_names_a_directory_at_any_depth(*, tmp_path):
+        write(tmp_path, NESTED_VENV)
+        write(tmp_path, TODO)
+
+        found = [
+            info.relative_path
+            for info in PathlibFilesystemReader([VENV]).walk(tmp_path)
+        ]
+
+        assert found == [TODO]
+
+    @staticmethod
+    def test_a_glob_names_files_too(*, tmp_path):
+        write(tmp_path, CACHED)
+        write(tmp_path, TODO)
+
+        found = [
+            info.relative_path
+            for info in PathlibFilesystemReader(["*.pyc"]).walk(tmp_path)
+        ]
+
+        assert found == [TODO]
+
+    @staticmethod
+    def test_a_pattern_matching_nothing_leaves_the_tree_alone(*, tmp_path):
+        write(tmp_path, INBOX)
+
+        found = [
+            info.relative_path
+            for info in PathlibFilesystemReader(["nothing-here"]).walk(tmp_path)
+        ]
+
+        assert found == [INBOX]
+
+    @staticmethod
+    def test_a_tree_that_is_only_ignored_reads_as_empty(*, tmp_path):
+        write(tmp_path, BURIED)
+
+        assert not list(PathlibFilesystemReader([VENV]).walk(tmp_path))

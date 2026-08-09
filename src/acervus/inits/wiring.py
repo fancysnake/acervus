@@ -47,6 +47,6 @@ def main() -> None:
         sys.stderr.write(NO_CONFIG_MESSAGE)
         sys.exit(1)
     with closing(Repositories(config.db_path)) as repositories:
-        services = Services(repositories)
+        services = Services(repositories, ignore=config.ignore)
         services.roots.sync(config.roots)
         build_app(services).run()

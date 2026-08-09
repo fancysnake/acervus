@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from acervus.inits import config as config_module
 from acervus.inits.config import load_config
 from acervus.inits.wiring import BAD_CONFIG_MESSAGE, NO_CONFIG_MESSAGE, main
+from acervus.pacts.config import DEFAULT_IGNORE
 
 SAMPLE_TOML = """\
 [acervus]
@@ -24,6 +25,15 @@ db_path = "~/.local/share/acervus/acervus.db"
 
 [acervus.roots]
 docs = "~/docs"
+"""
+
+IGNORE_TOML = """\
+[acervus]
+db_path = "/tmp/acervus.db"
+ignore = [".venv", "*.pyc"]
+
+[acervus.roots]
+docs = "/home/user/docs"
 """
 
 WRONG_SECTION_TOML = """\
@@ -70,6 +80,26 @@ class TestLoadConfig:
             "docs": Path("/home/user/docs"),
             "photos": Path("/home/user/photos"),
         }
+
+    @staticmethod
+    def test_it_reads_the_ignore_list(tmp_path):
+        config_path = tmp_path / "config.toml"
+        config_path.write_text(IGNORE_TOML)
+
+        config = load_config(config_path)
+
+        assert config is not None
+        assert config.ignore == (".venv", "*.pyc")
+
+    @staticmethod
+    def test_a_file_that_says_nothing_keeps_the_default_ignore_list(tmp_path):
+        config_path = tmp_path / "config.toml"
+        config_path.write_text(SAMPLE_TOML)
+
+        config = load_config(config_path)
+
+        assert config is not None
+        assert config.ignore == DEFAULT_IGNORE
 
     @staticmethod
     def test_missing_file_returns_none(tmp_path):

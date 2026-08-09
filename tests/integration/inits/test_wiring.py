@@ -26,6 +26,7 @@ ARCHIVE_PATH = Path("/home/user/archive")
 CONTENT = "hello"
 LONGER = "hello again, and then some"
 INBOX = "inbox.md"
+VENV = ".venv"
 USABLE_TOML = """\
 [acervus]
 db_path = "{db_path}"
@@ -215,6 +216,23 @@ class TestScanningOffTheCallersThread:
             pytest.raises(RootUnavailableError),
         ):
             pool.submit(services.scan.scan, NOTES).result()
+
+
+class TestScanningWithAnIgnoreList:
+    @staticmethod
+    def test_an_ignored_directory_never_reaches_the_index(repositories, tree):
+        buried = tree / VENV / "lib"
+        buried.mkdir(parents=True)
+        (buried / "thing.py").write_text(CONTENT)
+        services = Services(repositories, ignore=[VENV])
+        root = services.roots.sync({NOTES: tree})[0]
+
+        result = services.scan.scan(NOTES)
+
+        assert result.added == 1  # inbox.md, and nothing from the virtualenv
+        assert [
+            file.relative_path for file in services.files.list_by_root(root.id)
+        ] == [Path(INBOX)]
 
 
 # The whole entry point, from the config file down to the app it hands over to.

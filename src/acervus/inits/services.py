@@ -12,6 +12,8 @@ from acervus.mills.stack import StackService
 from acervus.pacts.file import ScanServiceProtocol
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from acervus.inits.repositories import Repositories
     from acervus.links.db.sqlalchemy import FileRepository
     from acervus.pacts.file import ScanResult
@@ -25,8 +27,11 @@ class IsolatedScan(ScanServiceProtocol):
     if it does not touch the session that thread is using.
     """
 
-    def __init__(self, repositories: Repositories) -> None:
+    def __init__(
+        self, repositories: Repositories, *, ignore: Iterable[str] = ()
+    ) -> None:
         self._repositories = repositories
+        self._ignore = tuple(ignore)
 
     def scan(self, alias: str) -> ScanResult:
         """Walk the root with this alias and reconcile the index against it.
@@ -38,7 +43,7 @@ class IsolatedScan(ScanServiceProtocol):
             return ScanService(
                 files=apart.files,
                 roots=apart.roots,
-                filesystem=PathlibFilesystemReader(),
+                filesystem=PathlibFilesystemReader(self._ignore),
                 transaction=apart.transaction,
             ).scan(alias)
 
@@ -46,8 +51,11 @@ class IsolatedScan(ScanServiceProtocol):
 class Services:
     """Builds each service over the repositories and transaction it asks for."""
 
-    def __init__(self, repositories: Repositories) -> None:
+    def __init__(
+        self, repositories: Repositories, *, ignore: Iterable[str] = ()
+    ) -> None:
         self._repositories = repositories
+        self._ignore = tuple(ignore)
 
     @cached_property
     def roots(self) -> RootService:
@@ -80,4 +88,4 @@ class Services:
     @cached_property
     def scan(self) -> IsolatedScan:
         """The scan service, reading the filesystem with pathlib."""
-        return IsolatedScan(self._repositories)
+        return IsolatedScan(self._repositories, ignore=self._ignore)

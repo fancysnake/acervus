@@ -46,6 +46,7 @@ See [`config.example.toml`](config.example.toml):
 ```toml
 [acervus]
 db_path = "~/.local/share/acervus/acervus.db"
+# ignore = [".git", ".venv", "node_modules", "__pycache__"]
 
 [acervus.roots]
 # docs   = "/home/user/docs"
@@ -54,6 +55,10 @@ db_path = "~/.local/share/acervus/acervus.db"
 
 - `db_path` — where the SQLite index lives.
 - `[acervus.roots]` — the named directories Acervus manages (`alias = "path"`).
+- `ignore` — glob patterns a scan skips, matched against one path component at
+  a time: `.venv` skips a directory of that name at any depth, `*.pyc` skips a
+  file. An ignored directory is pruned, not walked. Writing the key replaces
+  the default list shown above; `ignore = []` indexes everything.
 
 If no config file is found, `acre` prints a hint and exits.
 
