@@ -41,7 +41,7 @@ async def open_files_and_mark_first(pilot) -> None:
 
 class TestAddingAMark:
     @staticmethod
-    async def test_it_reaches_the_index(app, indexed):
+    async def test_it_reaches_the_index(*, app, indexed):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, INVOICE)
@@ -49,7 +49,7 @@ class TestAddingAMark:
         assert [mark.name for mark in indexed.marks.list_all()] == [INVOICE]
 
     @staticmethod
-    async def test_it_lands_on_the_file_under_the_cursor(app, indexed):
+    async def test_it_lands_on_the_file_under_the_cursor(*, app, indexed):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, INVOICE)
@@ -60,7 +60,7 @@ class TestAddingAMark:
         ]
 
     @staticmethod
-    async def test_it_follows_the_cursor(app, indexed):
+    async def test_it_follows_the_cursor(*, app, indexed):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, DOWN_KEY, ADD_KEY)
             await type_name(pilot, INVOICE)
@@ -73,7 +73,7 @@ class TestAddingAMark:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_the_screen_reports_it(app):
+    async def test_the_screen_reports_it(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, INVOICE)
@@ -83,7 +83,7 @@ class TestAddingAMark:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_the_screen_shows_what_the_file_carries(app):
+    async def test_the_screen_shows_what_the_file_carries(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, INVOICE)
@@ -92,7 +92,7 @@ class TestAddingAMark:
             assert INVOICE in str(carried.render())
 
     @staticmethod
-    async def test_two_marks_on_one_file(app, indexed):
+    async def test_two_marks_on_one_file(*, app, indexed):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, INVOICE)
@@ -106,7 +106,7 @@ class TestAddingAMark:
         ]
 
     @staticmethod
-    async def test_backing_out_of_the_prompt_marks_nothing(app, indexed):
+    async def test_backing_out_of_the_prompt_marks_nothing(*, app, indexed):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await pilot.press(*INVOICE, BACK_KEY)
@@ -114,7 +114,7 @@ class TestAddingAMark:
         assert indexed.marks.list_all() == []
 
     @staticmethod
-    async def test_an_empty_index_is_never_asked_for_a_name(app):
+    async def test_an_empty_index_is_never_asked_for_a_name(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await pilot.pause()
@@ -123,7 +123,7 @@ class TestAddingAMark:
             assert pilot.app.screen.query("#files")
 
     @staticmethod
-    async def test_a_bad_name_is_reported_and_not_stored(app, indexed):
+    async def test_a_bad_name_is_reported_and_not_stored(*, app, indexed):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, BAD_NAME)
@@ -136,7 +136,7 @@ class TestAddingAMark:
 
 class TestRemovingAMark:
     @staticmethod
-    async def test_it_leaves_the_index(app, indexed):
+    async def test_it_leaves_the_index(*, app, indexed):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, INVOICE)
@@ -147,7 +147,7 @@ class TestRemovingAMark:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_the_screen_reports_it(app):
+    async def test_the_screen_reports_it(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, INVOICE)
@@ -159,7 +159,7 @@ class TestRemovingAMark:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_an_unknown_mark_is_reported(app):
+    async def test_an_unknown_mark_is_reported(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, REMOVE_KEY)
             await type_name(pilot, HOLIDAY)
@@ -171,7 +171,7 @@ class TestRemovingAMark:
 class TestFilteringByMark:
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_it_starts_showing_any_mark(app):
+    async def test_it_starts_showing_any_mark(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY)
             label = pilot.app.screen.query_one("#file-filter", Static)
@@ -180,7 +180,7 @@ class TestFilteringByMark:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_it_narrows_to_files_carrying_the_mark(app):
+    async def test_it_narrows_to_files_carrying_the_mark(*, app):
         async with app.run_test() as pilot:
             await open_files_and_mark_first(pilot)
             await pilot.press(MARK_FILTER_KEY)
@@ -193,7 +193,7 @@ class TestFilteringByMark:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_the_next_step_is_the_unmarked_view(app):
+    async def test_the_next_step_is_the_unmarked_view(*, app):
         async with app.run_test() as pilot:
             await open_files_and_mark_first(pilot)
             await pilot.press(MARK_FILTER_KEY, MARK_FILTER_KEY)
@@ -206,7 +206,7 @@ class TestFilteringByMark:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_it_wraps_back_to_any_mark(app):
+    async def test_it_wraps_back_to_any_mark(*, app):
         async with app.run_test() as pilot:
             await open_files_and_mark_first(pilot)
             for _ in range(1 + 2):  # the mark, unmarked, then back round
@@ -219,7 +219,7 @@ class TestFilteringByMark:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_with_nothing_marked_it_steps_straight_to_unmarked(app):
+    async def test_with_nothing_marked_it_steps_straight_to_unmarked(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, MARK_FILTER_KEY)
             table = pilot.app.screen.query_one("#files", DataTable)
@@ -230,7 +230,7 @@ class TestFilteringByMark:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_a_filter_matching_nothing_says_so(app):
+    async def test_a_filter_matching_nothing_says_so(*, app):
         async with app.run_test() as pilot:
             await open_files_and_mark_first(pilot)
             await pilot.press(DOWN_KEY, ADD_KEY)
@@ -246,7 +246,7 @@ class TestFilteringByMark:
 class TestMarksScreen:
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_it_says_so_when_nothing_is_marked(app):
+    async def test_it_says_so_when_nothing_is_marked(*, app):
         async with app.run_test() as pilot:
             await pilot.press(MARKS_KEY)
             message = pilot.app.screen.query_one("#no-marks", Static)
@@ -256,7 +256,7 @@ class TestMarksScreen:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_it_lists_a_mark_with_its_count(app):
+    async def test_it_lists_a_mark_with_its_count(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, INVOICE)
@@ -269,7 +269,7 @@ class TestMarksScreen:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_a_mark_on_two_files_counts_twice(app):
+    async def test_a_mark_on_two_files_counts_twice(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, INVOICE)
@@ -284,7 +284,7 @@ class TestMarksScreen:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_marks_are_ordered_by_name(app):
+    async def test_marks_are_ordered_by_name(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, ADD_KEY)
             await type_name(pilot, INVOICE)

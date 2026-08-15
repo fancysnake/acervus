@@ -45,14 +45,14 @@ async def stack_first(pilot, name: str = TRIP) -> None:
 
 class TestPuttingAFileInAStack:
     @staticmethod
-    async def test_it_reaches_the_index(app, indexed):
+    async def test_it_reaches_the_index(*, app, indexed):
         async with app.run_test() as pilot:
             await stack_first(pilot)
 
         assert [stack.name for stack in indexed.stacks.list_all()] == [TRIP]
 
     @staticmethod
-    async def test_it_lands_on_the_file_under_the_cursor(app, indexed):
+    async def test_it_lands_on_the_file_under_the_cursor(*, app, indexed):
         async with app.run_test() as pilot:
             await stack_first(pilot)
 
@@ -62,7 +62,7 @@ class TestPuttingAFileInAStack:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_the_screen_shows_the_stack(app):
+    async def test_the_screen_shows_the_stack(*, app):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             sitting = pilot.app.screen.query_one("#file-stack", Static)
@@ -71,7 +71,7 @@ class TestPuttingAFileInAStack:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_a_loose_file_says_so(app):
+    async def test_a_loose_file_says_so(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY)
             sitting = pilot.app.screen.query_one("#file-stack", Static)
@@ -79,7 +79,7 @@ class TestPuttingAFileInAStack:
             assert SITS_LOOSE in str(sitting.render())
 
     @staticmethod
-    async def test_backing_out_of_the_prompt_stacks_nothing(app, indexed):
+    async def test_backing_out_of_the_prompt_stacks_nothing(*, app, indexed):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, PUT_KEY)
             await pilot.press(*TRIP, BACK_KEY)
@@ -87,7 +87,7 @@ class TestPuttingAFileInAStack:
         assert indexed.stacks.list_all() == []
 
     @staticmethod
-    async def test_a_blank_name_is_reported_and_not_stored(app, indexed):
+    async def test_a_blank_name_is_reported_and_not_stored(*, app, indexed):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, PUT_KEY)
             await type_name(pilot, EMPTY_NAME)
@@ -98,7 +98,7 @@ class TestPuttingAFileInAStack:
         assert indexed.stacks.list_all() == []
 
     @staticmethod
-    async def test_two_files_can_share_a_stack(app, indexed):
+    async def test_two_files_can_share_a_stack(*, app, indexed):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             await pilot.press(DOWN_KEY, PUT_KEY)
@@ -112,7 +112,7 @@ class TestPuttingAFileInAStack:
 class TestMovingBetweenStacks:
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_the_screen_shows_the_stack_it_moved_to(app):
+    async def test_the_screen_shows_the_stack_it_moved_to(*, app):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             await pilot.press(PUT_KEY)
@@ -124,7 +124,7 @@ class TestMovingBetweenStacks:
 
 class TestTakingAFileOut:
     @staticmethod
-    async def test_it_leaves_the_stack(app, indexed):
+    async def test_it_leaves_the_stack(*, app, indexed):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             await pilot.press(TAKE_KEY)
@@ -134,7 +134,7 @@ class TestTakingAFileOut:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_the_screen_says_the_file_is_loose(app):
+    async def test_the_screen_says_the_file_is_loose(*, app):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             await pilot.press(TAKE_KEY)
@@ -143,7 +143,7 @@ class TestTakingAFileOut:
             assert SITS_LOOSE in str(sitting.render())
 
     @staticmethod
-    async def test_an_empty_index_has_nothing_to_take_out(app):
+    async def test_an_empty_index_has_nothing_to_take_out(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, TAKE_KEY)
             status = pilot.app.screen.query_one("#status", Static)
@@ -156,7 +156,7 @@ class TestTakingAFileOut:
 class TestStacksScreen:
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_it_says_so_when_nothing_is_stacked(app):
+    async def test_it_says_so_when_nothing_is_stacked(*, app):
         async with app.run_test() as pilot:
             await pilot.press(STACKS_KEY)
             message = pilot.app.screen.query_one("#no-stacks", Static)
@@ -165,7 +165,7 @@ class TestStacksScreen:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_it_lists_a_stack_with_its_size(app):
+    async def test_it_lists_a_stack_with_its_size(*, app):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             await pilot.press(BACK_KEY)
@@ -177,7 +177,7 @@ class TestStacksScreen:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_it_shows_the_contents_of_the_stack_under_the_cursor(app):
+    async def test_it_shows_the_contents_of_the_stack_under_the_cursor(*, app):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             await pilot.press(BACK_KEY)
@@ -192,7 +192,7 @@ class TestStacksScreen:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_stacks_are_ordered_by_name(app):
+    async def test_stacks_are_ordered_by_name(*, app):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             await pilot.press(DOWN_KEY, PUT_KEY)
@@ -211,7 +211,7 @@ class TestStacksScreen:
 class TestFilteringByStack:
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_it_starts_showing_any_stack(app):
+    async def test_it_starts_showing_any_stack(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY)
             label = pilot.app.screen.query_one("#file-filter", Static)
@@ -220,7 +220,7 @@ class TestFilteringByStack:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_it_narrows_to_the_files_in_the_stack(app):
+    async def test_it_narrows_to_the_files_in_the_stack(*, app):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             await pilot.press(STACK_FILTER_KEY)
@@ -233,7 +233,7 @@ class TestFilteringByStack:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_the_next_step_is_the_unstacked_view(app):
+    async def test_the_next_step_is_the_unstacked_view(*, app):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             await pilot.press(STACK_FILTER_KEY, STACK_FILTER_KEY)
@@ -246,7 +246,7 @@ class TestFilteringByStack:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_it_wraps_back_to_any_stack(app):
+    async def test_it_wraps_back_to_any_stack(*, app):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             for _ in range(1 + 2):  # the stack, unstacked, then back round
@@ -259,7 +259,7 @@ class TestFilteringByStack:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_with_nothing_stacked_it_steps_straight_to_unstacked(app):
+    async def test_with_nothing_stacked_it_steps_straight_to_unstacked(*, app):
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY, STACK_FILTER_KEY)
             table = pilot.app.screen.query_one("#files", DataTable)
@@ -270,7 +270,7 @@ class TestFilteringByStack:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_a_filter_matching_nothing_says_so(app):
+    async def test_a_filter_matching_nothing_says_so(*, app):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             await pilot.press(DOWN_KEY, PUT_KEY)
@@ -283,7 +283,7 @@ class TestFilteringByStack:
 
     @staticmethod
     @pytest.mark.usefixtures("indexed")
-    async def test_the_stack_and_mark_filters_combine(app):
+    async def test_the_stack_and_mark_filters_combine(*, app):
         async with app.run_test() as pilot:
             await stack_first(pilot)
             await pilot.press(ADD_KEY)

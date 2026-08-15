@@ -43,7 +43,7 @@ class TestCleanStackName:
 
     @staticmethod
     @pytest.mark.parametrize("name", ("", "   ", "\t\n"))
-    def test_a_blank_name_raises(name) -> None:
+    def test_a_blank_name_raises(*, name) -> None:
         with pytest.raises(InvalidStackNameError):
             clean_stack_name(name)
 

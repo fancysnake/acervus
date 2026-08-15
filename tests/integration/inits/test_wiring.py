@@ -82,7 +82,7 @@ def runs_fixture(monkeypatch):
 
 class TestRepositories:
     @staticmethod
-    def test_the_database_file_is_created_on_first_use(db_path, repositories):
+    def test_the_database_file_is_created_on_first_use(*, db_path, repositories):
         assert not db_path.exists()
 
         repositories.roots.list_all()
@@ -90,40 +90,40 @@ class TestRepositories:
         assert db_path.exists()
 
     @staticmethod
-    def test_it_builds_the_parent_directory(db_path, repositories):
+    def test_it_builds_the_parent_directory(*, db_path, repositories):
         repositories.roots.list_all()
 
         assert db_path.parent.is_dir()
 
     @staticmethod
-    def test_it_hands_out_repositories(repositories):
+    def test_it_hands_out_repositories(*, repositories):
         assert isinstance(repositories.roots, RootRepository)
         assert isinstance(repositories.files, FileRepository)
 
     @staticmethod
-    def test_it_hands_out_a_transaction(repositories):
+    def test_it_hands_out_a_transaction(*, repositories):
         assert isinstance(repositories.transaction, SessionTransaction)
 
     @staticmethod
-    def test_every_repository_shares_one_session(repositories):
+    def test_every_repository_shares_one_session(*, repositories):
         root = repositories.roots.upsert_many([{"alias": NOTES, "path": NOTES_PATH}])[0]
 
         assert repositories.files.list_by_root(root.id) == []
 
     @staticmethod
-    def test_the_session_is_opened_once(repositories):
+    def test_the_session_is_opened_once(*, repositories):
         assert repositories.session is repositories.session
 
 
 class TestClosingTheContainer:
     @staticmethod
-    def test_closing_an_unused_container_creates_nothing(db_path):
+    def test_closing_an_unused_container_creates_nothing(*, db_path):
         Repositories(db_path).close()
 
         assert not db_path.exists()
 
     @staticmethod
-    def test_closing_twice_does_nothing_the_second_time(db_path):
+    def test_closing_twice_does_nothing_the_second_time(*, db_path):
         container = Repositories(db_path)
         container.roots.list_all()
 
@@ -133,7 +133,7 @@ class TestClosingTheContainer:
         assert db_path.exists()
 
     @staticmethod
-    def test_a_container_used_after_a_close_opens_a_new_session(db_path):
+    def test_a_container_used_after_a_close_opens_a_new_session(*, db_path):
         container = Repositories(db_path)
         opened = container.session
 
@@ -145,15 +145,15 @@ class TestClosingTheContainer:
 
 class TestServices:
     @staticmethod
-    def test_it_hands_out_services(services):
+    def test_it_hands_out_services(*, services):
         assert isinstance(services.roots, RootService)
 
     @staticmethod
-    def test_the_services_are_cached(services):
+    def test_the_services_are_cached(*, services):
         assert services.roots is services.roots
 
     @staticmethod
-    def test_sync_reaches_the_database(db_path, services):
+    def test_sync_reaches_the_database(*, db_path, services):
         synced = services.roots.sync({NOTES: NOTES_PATH, ARCHIVE: ARCHIVE_PATH})
 
         assert [root.alias for root in synced] == [ARCHIVE, NOTES]
@@ -164,7 +164,7 @@ class TestServices:
             ]
 
     @staticmethod
-    def test_sync_drops_a_root_the_config_no_longer_names(db_path, services):
+    def test_sync_drops_a_root_the_config_no_longer_names(*, db_path, services):
         services.roots.sync({NOTES: NOTES_PATH, ARCHIVE: ARCHIVE_PATH})
 
         services.roots.sync({NOTES: NOTES_PATH})
@@ -177,7 +177,7 @@ class TestServices:
 # it writes must be visible to the session the interface is reading through.
 class TestScanningOffTheCallersThread:
     @staticmethod
-    def test_it_scans_from_another_thread(services, tree):
+    def test_it_scans_from_another_thread(*, services, tree):
         services.roots.sync({NOTES: tree})
 
         with ThreadPoolExecutor(max_workers=1) as pool:
@@ -186,7 +186,7 @@ class TestScanningOffTheCallersThread:
         assert result.added == 1
 
     @staticmethod
-    def test_the_shared_session_sees_what_the_thread_wrote(services, tree):
+    def test_the_shared_session_sees_what_the_thread_wrote(*, services, tree):
         root = services.roots.sync({NOTES: tree})[0]
 
         with ThreadPoolExecutor(max_workers=1) as pool:
@@ -195,7 +195,7 @@ class TestScanningOffTheCallersThread:
         assert len(services.files.list_by_root(root.id)) == 1
 
     @staticmethod
-    def test_the_shared_session_sees_what_the_thread_rewrote(services, tree):
+    def test_the_shared_session_sees_what_the_thread_rewrote(*, services, tree):
         root = services.roots.sync({NOTES: tree})[0]
         services.scan.scan(NOTES)
         # Read it, so the shared session is holding the file as it was.
@@ -208,7 +208,7 @@ class TestScanningOffTheCallersThread:
         assert services.files.list_by_root(root.id)[0].size == len(LONGER)
 
     @staticmethod
-    def test_a_root_that_is_not_there_still_raises(services, tmp_path):
+    def test_a_root_that_is_not_there_still_raises(*, services, tmp_path):
         services.roots.sync({NOTES: tmp_path / "gone"})
 
         with (
@@ -220,7 +220,7 @@ class TestScanningOffTheCallersThread:
 
 class TestScanningWithAnIgnoreList:
     @staticmethod
-    def test_an_ignored_directory_never_reaches_the_index(repositories, tree):
+    def test_an_ignored_directory_never_reaches_the_index(*, repositories, tree):
         buried = tree / VENV / "lib"
         buried.mkdir(parents=True)
         (buried / "thing.py").write_text(CONTENT)

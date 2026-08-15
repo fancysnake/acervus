@@ -36,7 +36,7 @@ class TestCleanMarkName:
 
     @staticmethod
     @pytest.mark.parametrize("name", ("", "   ", "\t\n"))
-    def test_a_blank_name_raises(name) -> None:
+    def test_a_blank_name_raises(*, name) -> None:
         with pytest.raises(InvalidMarkNameError):
             clean_mark_name(name)
 
@@ -47,13 +47,13 @@ class TestCleanMarkName:
 
     @staticmethod
     @pytest.mark.parametrize("name", (TWO_WORDS, "tab\there", "line\nbreak"))
-    def test_inner_whitespace_raises(name) -> None:
+    def test_inner_whitespace_raises(*, name) -> None:
         with pytest.raises(InvalidMarkNameError):
             clean_mark_name(name)
 
     @staticmethod
     @pytest.mark.parametrize("name", ("docs:invoice", "one,two"))
-    def test_a_reserved_character_raises(name) -> None:
+    def test_a_reserved_character_raises(*, name) -> None:
         with pytest.raises(InvalidMarkNameError):
             clean_mark_name(name)
 
