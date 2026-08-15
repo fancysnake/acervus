@@ -20,7 +20,7 @@ jobs:
       - run: mise exec -- poetry install
       - run: mise test:py:cov
       - name: Upload Python coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         if: success()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -28,7 +28,7 @@ jobs:
           flags: python
           disable_search: true
       - name: Upload client coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         if: success()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
