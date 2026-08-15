@@ -7,18 +7,17 @@ in any table; the footer always shows the keys the current screen accepts.
 
 | Key | Does |
 |-----|------|
-| <kbd>f</kbd> | open the files screen |
-| <kbd>m</kbd> | open the marks screen |
-| <kbd>t</kbd> | open the stacks screen |
-| <kbd>q</kbd> | quit |
+| ++f++ | open the files screen |
+| ++m++ | open the marks screen |
+| ++t++ | open the stacks screen |
+| ++q++ | quit |
 
-<kbd>Escape</kbd> goes back from the files, marks and stacks screens to the one
-underneath. The roots screen is the bottom of the stack, so <kbd>Escape</kbd>
-does nothing there — leave with <kbd>q</kbd>.
+++escape++ goes back from the files, marks and stacks screens to the one
+underneath. The roots screen is the bottom of the stack, so ++escape++ does
+nothing there — leave with ++q++.
 
 While a name prompt is open your keystrokes go into the text field, so the keys
-above do not fire until you submit with <kbd>Enter</kbd> or back out with
-<kbd>Escape</kbd>.
+above do not fire until you submit with ++enter++ or back out with ++escape++.
 
 ## Roots
 
@@ -27,7 +26,7 @@ alphabetical order by alias.
 
 | Key | Does |
 |-----|------|
-| <kbd>s</kbd> | scan the root under the cursor |
+| ++s++ | scan the root under the cursor |
 
 The line under the table reports the scan: `Scanning docs…` while it runs, then
 `docs: 12 added, 3 removed, 1 updated.` when it finishes. See
@@ -47,16 +46,16 @@ cursor as it moves.
 
 | Key | Does |
 |-----|------|
-| <kbd>r</kbd> | step the root filter |
-| <kbd>k</kbd> | step the mark filter |
-| <kbd>c</kbd> | step the stack filter |
-| <kbd>a</kbd> | put a mark on the file under the cursor |
-| <kbd>x</kbd> | take a mark off the file under the cursor |
-| <kbd>s</kbd> | put the file under the cursor in a stack |
-| <kbd>u</kbd> | take the file under the cursor out of its stack |
+| ++r++ | step the root filter |
+| ++k++ | step the mark filter |
+| ++c++ | step the stack filter |
+| ++a++ | put a mark on the file under the cursor |
+| ++x++ | take a mark off the file under the cursor |
+| ++s++ | put the file under the cursor in a stack |
+| ++u++ | take the file under the cursor out of its stack |
 
-The filter keys take a consonant from the noun, since <kbd>m</kbd> and
-<kbd>s</kbd> are spoken for: mar<strong>k</strong>, sta<strong>c</strong>k.
+The filter keys take a consonant from the noun, since ++m++ and ++s++ are
+spoken for: mar<strong>k</strong>, sta<strong>c</strong>k.
 
 Marking is covered in [Marks and stacks](marks-and-stacks.md).
 
@@ -69,10 +68,10 @@ line above the table always says where you are:
 Showing: docs, invoice, unstacked
 ```
 
-- <kbd>r</kbd> cycles *all roots*, then each root in turn. There is no bare stop
-  — every file has a root.
-- <kbd>k</kbd> cycles *any mark*, then each mark in turn, then *unmarked*.
-- <kbd>c</kbd> cycles *any stack*, then each stack in turn, then *unstacked*.
+- ++r++ cycles *all roots*, then each root in turn. There is no bare stop —
+  every file has a root.
+- ++k++ cycles *any mark*, then each mark in turn, then *unmarked*.
+- ++c++ cycles *any stack*, then each stack in turn, then *unstacked*.
 
 The three narrow together, so `docs, invoice, unstacked` lists the files under
 `docs` that carry `invoice` and sit in no stack. `unmarked` and `unstacked` are

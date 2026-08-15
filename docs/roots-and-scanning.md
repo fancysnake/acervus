@@ -22,8 +22,8 @@ in the config reads as one root deleted and another added, with the same effect.
 
 ## What a scan does
 
-Press <kbd>s</kbd> on the roots screen with the cursor on a root. Acervus walks
-that directory and compares what it finds against what the index holds for that
+Press ++s++ on the roots screen with the cursor on a root. Acervus walks that
+directory and compares what it finds against what the index holds for that
 root:
 
 - a file the directory has and the index lacks is **added**

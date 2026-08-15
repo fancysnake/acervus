@@ -61,8 +61,8 @@ and opens on the roots screen:
 ## Your first scan
 
 The index knows your roots but nothing under them yet. Put the cursor on a root
-with the arrow keys and press <kbd>s</kbd>. Acervus walks the directory and
-reports what changed:
+with the arrow keys and press ++s++. Acervus walks the directory and reports
+what changed:
 
 ```text
 docs: 1284 added, 0 removed, 0 updated.
@@ -73,32 +73,30 @@ Scan the other roots the same way.
 
 ## Mark something
 
-Press <kbd>f</kbd> for the files screen. It lists every indexed file, with the
-root it came from, its path within that root, and its size. Under the table,
-two lines show what the file under the cursor carries and which stack it sits
-in.
+Press ++f++ for the files screen. It lists every indexed file, with the root it
+came from, its path within that root, and its size. Under the table, two lines
+show what the file under the cursor carries and which stack it sits in.
 
-Move to a file and press <kbd>a</kbd>. A prompt asks for a mark name; type
-`invoice` and press <kbd>Enter</kbd>. The status line confirms it, and the marks
-line for that file now reads `Marks: invoice`. The mark did not exist a moment
-ago — putting it on a file is what created it.
+Move to a file and press ++a++. A prompt asks for a mark name; type `invoice`
+and press ++enter++. The status line confirms it, and the marks line for that
+file now reads `Marks: invoice`. The mark did not exist a moment ago — putting
+it on a file is what created it.
 
-Press <kbd>x</kbd> to take a mark off again, naming it the same way. Press
-<kbd>s</kbd> to put the file in a stack, and <kbd>u</kbd> to take it back out.
+Press ++x++ to take a mark off again, naming it the same way. Press ++s++ to
+put the file in a stack, and ++u++ to take it back out.
 
 ## Find it again
 
-Still on the files screen, press <kbd>k</kbd> to step the mark filter forward.
-It cycles through *any mark*, then each mark in turn, then *unmarked*, and back
+Still on the files screen, press ++k++ to step the mark filter forward. It
+cycles through *any mark*, then each mark in turn, then *unmarked*, and back
 around. The line above the table always says what you are looking at:
 
 ```text
 Showing: all roots, invoice, any stack
 ```
 
-<kbd>r</kbd> does the same for roots and <kbd>c</kbd> for stacks, and the three
-filters combine — root `docs`, mark `invoice`, unstacked, if that is what you
-need.
+++r++ does the same for roots and ++c++ for stacks, and the three filters
+combine — root `docs`, mark `invoice`, unstacked, if that is what you need.
 
 ## Where next
 

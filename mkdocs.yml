@@ -6,11 +6,45 @@ edit_uri: edit/main/docs/
 docs_dir: docs
 strict: true
 theme:
-  name: readthedocs
-  highlightjs: true
+  name: material
+  icon:
+    logo: material/tag-multiple
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.top
+    - navigation.tracking
+    - content.action.edit
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+extra_css:
+  - stylesheets/extra.css
+plugins:
+  - search
 markdown_extensions:
   - admonition
+  - attr_list
   - tables
+  - pymdownx.details
+  - pymdownx.keys
+  - pymdownx.superfences
   - toc:
       permalink: true
 nav:

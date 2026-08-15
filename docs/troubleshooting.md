@@ -65,11 +65,11 @@ it.
 ## The files screen is empty
 
 `No files indexed. Scan a root first.` means the index has no files at all: go to
-the roots screen and press <kbd>s</kbd>.
+the roots screen and press ++s++.
 
 `No files match this filter.` means the filters are too narrow. Step each of
-<kbd>r</kbd>, <kbd>k</kbd> and <kbd>c</kbd> back around to *all roots*, *any
-mark* and *any stack* — the line above the table shows where each one stands.
+++r++, ++k++ and ++c++ back around to *all roots*, *any mark* and *any stack* —
+the line above the table shows where each one stands.
 
 ## A name is rejected
 

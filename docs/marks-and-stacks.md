@@ -4,12 +4,12 @@ Both are made on the files screen, on the file under the cursor.
 
 | Key | Does |
 |-----|------|
-| <kbd>a</kbd> | put a mark on the file — asks for a name |
-| <kbd>x</kbd> | take a mark off the file — asks for a name |
-| <kbd>s</kbd> | put the file in a stack — asks for a name |
-| <kbd>u</kbd> | take the file out of its stack — asks nothing |
+| ++a++ | put a mark on the file — asks for a name |
+| ++x++ | take a mark off the file — asks for a name |
+| ++s++ | put the file in a stack — asks for a name |
+| ++u++ | take the file out of its stack — asks nothing |
 
-<kbd>Escape</kbd> at a prompt backs out and changes nothing.
+++escape++ at a prompt backs out and changes nothing.
 
 ## Marks
 
