@@ -57,11 +57,30 @@ class FileFilter:
     does not narrow at all, an id keeps the files carrying it or sitting in
     it, and ``BARE`` keeps only the files that carry no mark, or sit in no
     stack. ``root_id`` has no bare case, because every file has a root.
+
+    ``directory`` is the one narrowing keyed by name rather than by id, since
+    a directory is not indexed — it is what the indexed paths have in common.
+    ``None`` does not narrow at all; a path keeps the files sitting directly
+    in that directory, and ``Path()`` is the top of the root. Directories only
+    narrow within one root, so a filter naming one names a root as well.
     """
 
     root_id: int | None = None
     mark_id: Narrowing = None
     stack_id: Narrowing = None
+    directory: Path | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DirectorySummary:
+    """A directory alongside how many files sit anywhere beneath it.
+
+    Directories are not rows in the index: this is one path segment the files
+    under a root have in common, counted from their relative paths.
+    """
+
+    name: str
+    file_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +107,14 @@ class FileRepositoryProtocol(Protocol):
         A caller that shows the listing a page at a time passes ``limit`` and
         walks ``offset`` forward by it. The order is total, so a page read this
         way holds what it would have held had the whole listing been read.
+        """
+
+    def list_directories(self, scope: FileFilter) -> list[DirectorySummary]:
+        """Return the directories sitting directly in the filter's directory.
+
+        Each is counted over everything beneath it, and the rest of the filter
+        counts with it, so a directory holding nothing that matches is not
+        returned at all.
         """
 
     def list_by_root(self, root_id: int) -> list[FileDTO]:

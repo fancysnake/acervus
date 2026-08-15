@@ -26,7 +26,7 @@ MARK_FILTER_KEY = "k"
 ANY_MARK = "any mark"
 UNMARKED = "unmarked"
 NO_MATCHES_MESSAGE = "No files match this filter"
-PATH_CELL = 2  # the files table reads: selection mark, root, path, size
+NAME_CELL = 1  # the files table reads: selection mark, name, files, size
 
 
 async def type_name(pilot, name: str) -> None:
@@ -188,7 +188,7 @@ class TestFilteringByMark:
             label = pilot.app.screen.query_one("#file-filter", Static)
 
             assert table.row_count == 1
-            assert table.get_row_at(0)[PATH_CELL] == INBOX
+            assert table.get_row_at(0)[NAME_CELL] == INBOX
             assert INVOICE in str(label.render())
 
     @staticmethod
@@ -201,7 +201,7 @@ class TestFilteringByMark:
             label = pilot.app.screen.query_one("#file-filter", Static)
 
             assert table.row_count == 1
-            assert table.get_row_at(0)[PATH_CELL] == NOTES
+            assert table.get_row_at(0)[NAME_CELL] == NOTES
             assert UNMARKED in str(label.render())
 
     @staticmethod

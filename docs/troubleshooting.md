@@ -64,12 +64,18 @@ it.
 
 ## The files screen is empty
 
-`No files indexed. Scan a root first.` means the index has no files at all: go to
-the roots screen and press ++s++.
+`No files indexed. Scan a root first.` means this directory holds nothing —
+either the root has never been scanned, in which case go to the roots screen and
+press ++s++, or you are simply somewhere empty. ++backspace++ goes back up, and
+++r++ moves to the next root.
 
-`No files match this filter.` means the filters are too narrow. Step each of
-++r++, ++k++ and ++c++ back around to *all roots*, *any mark* and *any stack* —
-the line above the table shows where each one stands.
+`No files match this filter.` means the filters are too narrow. Step ++k++ and
+++c++ back around to *any mark* and *any stack* — the line above the table shows
+where each one stands. Remember the filters hide directories too: a directory
+whose files all fail the filter is not listed while it is on.
+
+`No roots configured.` means the config names no roots at all. See
+[Configuration](configuration.md).
 
 ## A name is rejected
 

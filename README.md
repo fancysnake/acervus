@@ -78,15 +78,20 @@ The app opens on the roots screen, listing each configured `alias -> path`.
 | `f` / `m` / `t` | anywhere | Open the files, marks or stacks screen |
 | `q` | anywhere | Quit |
 | `s` | roots | Scan the root under the cursor and report what changed |
-| `r` / `k` / `c` | files | Cycle the filter by root, by mark, by stack |
+| `enter` / `backspace` | files | Open the directory under the cursor, go back up |
+| `r` | files | Move to the next root |
+| `k` / `c` | files | Cycle the filter by mark, by stack |
 | `space` | files | Select the file under the cursor, or deselect it |
 | `a` / `x` | files | Put a mark on every file selected, take one off |
 | `s` / `u` | files | Put them in a stack, take them out of their stacks |
 | `escape` | any screen | Back |
 
-With nothing selected, the four operations are aimed at the file under the
-cursor. The listing is read a page at a time, so a root holding hundreds of
-thousands of files draws at once and reads the rest as the cursor moves down.
+The files screen browses one directory of one root at a time: subdirectories
+first, with how many files each holds, then the directory's own files. Nothing
+acts on a directory — marking a whole tree in one keypress is not offered. With
+nothing selected, the four operations are aimed at the file under the cursor. A
+directory's files are read a page at a time, so one holding hundreds of
+thousands draws at once and reads the rest as the cursor moves down.
 
 A scan inserts files the root has and the index lacks, rewrites those whose size
 or mtime moved, and drops those the root no longer has. Marks and stacks come

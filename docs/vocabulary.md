@@ -14,7 +14,7 @@ docs = "/home/user/docs"
 
 Here `docs` is the alias and `/home/user/docs` is the path. Aliases are how you
 refer to a root everywhere else — the roots screen lists them, the files screen
-filters by them, a scan reports under them.
+browses one of them at a time, a scan reports under them.
 
 Roots come only from the config file. You cannot add or remove one from the
 interface, and Acervus reconciles the index against the config every time it
@@ -78,8 +78,8 @@ has to split it apart again.
 
 A file carrying no mark at all is **unmarked**; a file sitting in no stack is
 **unstacked**. Both are filters on the files screen: the mark filter and the
-stack filter each end their cycle on the bare case, so you can list exactly what
-you have not organized yet.
+stack filter each end their cycle on the bare case, so you can browse exactly
+the part of a root you have not organized yet.
 
 ## Alias
 

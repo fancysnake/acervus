@@ -15,10 +15,16 @@ from acervus.gates.tui.textual.files import LOOKAHEAD, PAGE
 DOCS = "docs"
 PHOTOS = "photos"
 INBOX = "inbox.md"
-SNAP = "holiday/snap.txt"
+HOLIDAY = "holiday"
+SNAP = f"{HOLIDAY}/snap.txt"
+YEAR = "2024"
+DEEPER = f"{HOLIDAY}/{YEAR}/older.txt"
+FOLDER = f"{HOLIDAY}/"  # how the table names a directory
 CONTENT = "hello"
 FILES_KEY = "f"
-FILTER_KEY = "r"
+ROOT_KEY = "r"
+OPEN_KEY = "enter"
+UP_KEY = "backspace"
 BACK_KEY = "escape"
 SELECT_KEY = "space"
 DOWN_KEY = "down"
@@ -27,16 +33,21 @@ ADD_KEY = "a"
 REMOVE_KEY = "x"
 SUBMIT_KEY = "enter"
 INVOICE = "invoice"
+MARK_FILTER_KEY = "k"
+UP_ARROW = "up"
+NO_ROOTS_MESSAGE = "No roots configured"
 NO_FILES_MESSAGE = "No files indexed"
-ALL_ROOTS = "all roots"
+UP = ".."
+BENEATH_HOLIDAY = "2"  # snap.txt and older.txt, counted on the directory's row
+NOTHING = ""
 PICKED = "•"
 UNPICKED = " "
 PICKED_BOTH = "2 selected"  # what the status says with both indexed files picked
 PARTLY_DONE = f"{INVOICE}: 1 of 2 files."  # one of the two selected carried it
-# The files table reads: selection mark, root, path, size.
+# The files table reads: selection mark, name, files beneath, size.
 PICK_CELL = 0
-ROOT_CELL = 1
-PATH_CELL = 2
+NAME_CELL = 1
+FILES_CELL = 2
 SIZE_CELL = 3
 OVER_A_PAGE = PAGE + LOOKAHEAD + 1  # far enough past the first page to reach for more
 
@@ -50,6 +61,19 @@ def trees_fixture(*, tmp_path):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(CONTENT)
     return {DOCS: docs, PHOTOS: photos}
+
+
+# One root holding a file at its top, a directory, and a directory below that.
+@pytest.fixture(name="nested")
+def nested_fixture(*, services, tmp_path):
+    tree = tmp_path / DOCS
+    for relative in (INBOX, SNAP, DEEPER):
+        target = tree / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(CONTENT)
+    services.roots.sync({DOCS: tree})
+    services.scan.scan(DOCS)
+    return services
 
 
 # More files than one page holds, written to the index rather than to disk:
@@ -85,24 +109,26 @@ async def type_name(pilot, name) -> None:
 
 class TestFilesScreen:
     @staticmethod
-    async def test_it_lists_every_indexed_file(*, app, services, trees):
+    async def test_it_opens_in_the_first_root(*, app, services, trees):
         index(services, trees)
 
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY)
             table = pilot.app.screen.query_one("#files", DataTable)
+            label = pilot.app.screen.query_one("#file-filter", Static)
 
-            assert table.row_count == 1 + 1  # one file under each root
+            assert table.row_count == 1  # the one file docs holds, and no more
+            assert DOCS in str(label.render())
 
     @staticmethod
-    async def test_a_row_names_the_root_and_the_path(*, app, services, trees):
+    async def test_a_row_names_the_file(*, app, services, trees):
         index(services, trees)
 
         async with app.run_test() as pilot:
             await pilot.press(FILES_KEY)
             table = pilot.app.screen.query_one("#files", DataTable)
 
-            assert table.get_row_at(0)[ROOT_CELL:SIZE_CELL] == [DOCS, INBOX]
+            assert table.get_row_at(0)[NAME_CELL] == INBOX
 
     @staticmethod
     async def test_a_row_carries_the_size(*, app, services, trees):
@@ -113,16 +139,6 @@ class TestFilesScreen:
             table = pilot.app.screen.query_one("#files", DataTable)
 
             assert table.get_row_at(0)[SIZE_CELL] == str(len(CONTENT))
-
-    @staticmethod
-    async def test_a_nested_path_is_shown_whole(*, app, services, trees):
-        index(services, trees)
-
-        async with app.run_test() as pilot:
-            await pilot.press(FILES_KEY)
-            table = pilot.app.screen.query_one("#files", DataTable)
-
-            assert table.get_row_at(1)[ROOT_CELL:SIZE_CELL] == [PHOTOS, str(Path(SNAP))]
 
     @staticmethod
     async def test_an_empty_index_says_so(*, app, services, trees):
@@ -145,64 +161,34 @@ class TestFilesScreen:
             assert not pilot.app.screen.query_one("#files", DataTable).display
 
     @staticmethod
-    async def test_it_starts_unfiltered(*, app, services, trees):
+    async def test_the_root_key_steps_to_the_next_root(*, app, services, trees):
         index(services, trees)
 
         async with app.run_test() as pilot:
-            await pilot.press(FILES_KEY)
-            label = pilot.app.screen.query_one("#file-filter", Static)
-
-            assert ALL_ROOTS in str(label.render())
-
-    @staticmethod
-    async def test_the_filter_narrows_to_one_root(*, app, services, trees):
-        index(services, trees)
-
-        async with app.run_test() as pilot:
-            await pilot.press(FILES_KEY)
-            await pilot.press(FILTER_KEY)
+            await pilot.press(FILES_KEY, ROOT_KEY)
             table = pilot.app.screen.query_one("#files", DataTable)
             label = pilot.app.screen.query_one("#file-filter", Static)
 
-            assert table.row_count == 1
-            assert table.get_row_at(0)[ROOT_CELL] == DOCS
+            assert PHOTOS in str(label.render())
+            assert table.get_row_at(0)[NAME_CELL] == FOLDER  # photos/holiday/
+
+    @staticmethod
+    async def test_the_root_key_wraps_back_round(*, app, services, trees):
+        index(services, trees)
+
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, ROOT_KEY, ROOT_KEY)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
             assert DOCS in str(label.render())
 
     @staticmethod
-    async def test_the_filter_steps_to_the_next_root(*, app, services, trees):
-        index(services, trees)
-
+    async def test_the_root_key_stays_put_when_no_root_is_indexed(*, app):
         async with app.run_test() as pilot:
-            await pilot.press(FILES_KEY)
-            await pilot.press(FILTER_KEY)
-            await pilot.press(FILTER_KEY)
-            table = pilot.app.screen.query_one("#files", DataTable)
+            await pilot.press(FILES_KEY, ROOT_KEY)
+            message = pilot.app.screen.query_one("#no-files", Static)
 
-            assert table.row_count == 1
-            assert table.get_row_at(0)[ROOT_CELL] == PHOTOS
-
-    @staticmethod
-    async def test_the_filter_wraps_back_to_all_roots(*, app, services, trees):
-        index(services, trees)
-
-        async with app.run_test() as pilot:
-            await pilot.press(FILES_KEY)
-            for _ in range(1 + 2):  # past docs and photos, back to the start
-                await pilot.press(FILTER_KEY)
-            table = pilot.app.screen.query_one("#files", DataTable)
-            label = pilot.app.screen.query_one("#file-filter", Static)
-
-            assert table.row_count == 1 + 1  # both roots again
-            assert ALL_ROOTS in str(label.render())
-
-    @staticmethod
-    async def test_the_filter_stays_put_when_no_root_is_indexed(*, app):
-        async with app.run_test() as pilot:
-            await pilot.press(FILES_KEY)
-            await pilot.press(FILTER_KEY)
-            label = pilot.app.screen.query_one("#file-filter", Static)
-
-            assert ALL_ROOTS in str(label.render())
+            assert NO_ROOTS_MESSAGE in str(message.render())
 
     @staticmethod
     async def test_back_returns_to_the_roots(*, app, services, trees):
@@ -215,6 +201,125 @@ class TestFilesScreen:
 
             assert pilot.app.screen.query("#roots")
             assert not pilot.app.screen.query("#files")
+
+
+class TestBrowsingDirectories:
+    @staticmethod
+    @pytest.mark.usefixtures("nested")
+    async def test_a_directory_is_a_row_of_its_own(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            # The directory first, then the root's own file, and nothing from
+            # inside the directory.
+            assert table.row_count == 1 + 1
+            assert table.get_row_at(0)[NAME_CELL] == FOLDER
+            assert table.get_row_at(1)[NAME_CELL] == INBOX
+
+    @staticmethod
+    @pytest.mark.usefixtures("nested")
+    async def test_a_directory_counts_everything_beneath_it(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.get_row_at(0)[FILES_CELL] == BENEATH_HOLIDAY
+            assert table.get_row_at(1)[FILES_CELL] == NOTHING  # a file counts none
+
+    @staticmethod
+    @pytest.mark.usefixtures("nested")
+    async def test_enter_opens_the_directory_under_the_cursor(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, OPEN_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert [
+                table.get_row_at(row)[NAME_CELL] for row in range(table.row_count)
+            ] == [UP, f"{YEAR}/", Path(SNAP).name]
+            assert HOLIDAY in str(label.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("nested")
+    async def test_backspace_goes_back_up_to_where_it_came_from(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, OPEN_KEY, UP_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.row_count == 1 + 1  # the directory and the root's file
+            assert table.cursor_row == 0  # back on the directory it came out of
+
+    @staticmethod
+    @pytest.mark.usefixtures("nested")
+    async def test_enter_on_the_way_up_row_goes_up_too(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, OPEN_KEY, OPEN_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.get_row_at(0)[NAME_CELL] == FOLDER
+
+    @staticmethod
+    @pytest.mark.usefixtures("nested")
+    async def test_it_goes_no_further_up_than_the_root(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, UP_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.get_row_at(0)[NAME_CELL] == FOLDER  # still at the top
+
+    @staticmethod
+    @pytest.mark.usefixtures("nested")
+    async def test_enter_on_a_file_opens_nothing(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, DOWN_KEY, OPEN_KEY)
+            label = pilot.app.screen.query_one("#file-filter", Static)
+
+            assert HOLIDAY not in str(label.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("nested")
+    async def test_a_directory_cannot_be_marked(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, ADD_KEY)
+            await pilot.pause()
+
+            assert not pilot.app.screen.query("#prompt")
+
+    @staticmethod
+    @pytest.mark.usefixtures("nested")
+    async def test_a_directory_cannot_be_selected(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, SELECT_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+            status = pilot.app.screen.query_one("#status", Static)
+
+            assert table.get_row_at(0)[PICK_CELL] == UNPICKED
+            assert not str(status.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("nested")
+    async def test_a_mark_filter_hides_a_directory_holding_no_match(*, app):
+        async with app.run_test() as pilot:
+            # The mark goes on the root's own file, so nothing under the
+            # directory carries it.
+            await pilot.press(FILES_KEY, DOWN_KEY, ADD_KEY)
+            await type_name(pilot, INVOICE)
+            await pilot.press(MARK_FILTER_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.row_count == 1
+            assert table.get_row_at(0)[NAME_CELL] == INBOX
+
+    @staticmethod
+    @pytest.mark.usefixtures("nested")
+    async def test_opening_a_directory_lets_the_selection_go(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, DOWN_KEY, SELECT_KEY)
+            await pilot.press(UP_ARROW, OPEN_KEY, UP_KEY, DOWN_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.get_row_at(1)[PICK_CELL] == UNPICKED
 
 
 class TestSelectingFiles:
@@ -299,7 +404,7 @@ class TestSelectingFiles:
     @pytest.mark.usefixtures("indexed")
     async def test_a_filter_step_lets_the_selection_go(*, app):
         async with app.run_test() as pilot:
-            await pilot.press(FILES_KEY, SELECT_KEY, FILTER_KEY)
+            await pilot.press(FILES_KEY, SELECT_KEY, MARK_FILTER_KEY)
             table = pilot.app.screen.query_one("#files", DataTable)
 
             assert table.get_row_at(0)[PICK_CELL] == UNPICKED

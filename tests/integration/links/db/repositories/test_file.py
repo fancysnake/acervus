@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from acervus.links.db.sqlalchemy.models import FileMark
 from acervus.links.db.sqlalchemy.repositories.file import BATCH
-from acervus.pacts.file import BARE, FileDTO, FileFilter
+from acervus.pacts.file import BARE, DirectorySummary, FileDTO, FileFilter
 
 DOCS = "docs"
 PHOTOS = "photos"
@@ -25,6 +25,14 @@ TRIP = "iceland trip"
 SPANNING = BATCH * 2 + 1  # two full statements and a remainder
 PAGE = 2  # a page narrower than the listing, so where it cuts is visible
 PAGED = PAGE * 2 + 1  # two full pages and a remainder
+NOTES = "notes"
+OLD = "old"
+ARCHIVE = "archive"
+README = Path("readme.md")
+ARCHIVED = Path(f"{ARCHIVE}/2024.jpg")
+# One root's worth of paths: a file at the top, two a level down, one below
+# those. TODO and INBOX already sit in notes/.
+TREE = (README, TODO, INBOX, Path(NOTES) / OLD / "kept.md")
 
 
 def _numbered_paths(count: int) -> list[Path]:
@@ -197,6 +205,91 @@ class TestFileRepository:
         assert len(remaining) == 1
         assert remaining[0].id == written[1].id
 
+
+class TestBrowsingByDirectory:
+    @staticmethod
+    def test_list_all_narrows_to_a_directory_own_files(*, a_file, roots, files):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        files.upsert_many([a_file(root.id, path) for path in TREE])
+
+        listed = files.list_all(FileFilter(root_id=root.id, directory=Path(NOTES)))
+
+        # notes/todo.md and notes/inbox.md, but nothing from notes/old/.
+        assert [file.relative_path for file in listed] == [INBOX, TODO]
+
+    @staticmethod
+    def test_list_all_narrows_to_the_top_of_the_root(*, a_file, roots, files):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        files.upsert_many([a_file(root.id, path) for path in TREE])
+
+        listed = files.list_all(FileFilter(root_id=root.id, directory=Path()))
+
+        assert [file.relative_path for file in listed] == [README]
+
+    @staticmethod
+    def test_list_directories_names_what_sits_directly_inside(*, a_file, roots, files):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        files.upsert_many([a_file(root.id, path) for path in TREE])
+
+        listed = files.list_directories(FileFilter(root_id=root.id, directory=Path()))
+
+        # One row for notes/, counting everything beneath it, and none for the
+        # directory below that.
+        assert listed == [DirectorySummary(name=NOTES, file_count=1 + 2)]
+
+    @staticmethod
+    def test_list_directories_steps_down_a_level(*, a_file, roots, files):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        files.upsert_many([a_file(root.id, path) for path in TREE])
+
+        listed = files.list_directories(
+            FileFilter(root_id=root.id, directory=Path(NOTES))
+        )
+
+        assert listed == [DirectorySummary(name=OLD, file_count=1)]
+
+    @staticmethod
+    def test_list_directories_is_empty_at_the_bottom(*, a_file, roots, files):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        files.upsert_many([a_file(root.id, path) for path in TREE])
+
+        assert (
+            files.list_directories(
+                FileFilter(root_id=root.id, directory=Path(NOTES) / OLD)
+            )
+            == []
+        )
+
+    @staticmethod
+    def test_list_directories_stays_inside_its_root(*, a_file, roots, files):
+        docs, photos = roots.upsert_many(
+            [{"alias": DOCS, "path": DOCS_PATH}, {"alias": PHOTOS, "path": PHOTOS_PATH}]
+        )
+        files.upsert_many(
+            [a_file(docs.id, path) for path in TREE] + [a_file(photos.id, ARCHIVED)]
+        )
+
+        listed = files.list_directories(FileFilter(root_id=photos.id, directory=Path()))
+
+        assert listed == [DirectorySummary(name=ARCHIVE, file_count=1)]
+
+    @staticmethod
+    def test_list_directories_counts_only_what_the_filter_keeps(
+        *, a_file, roots, files, marks
+    ):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        written = files.upsert_many([a_file(root.id, path) for path in TREE])
+        mark = marks.create(INVOICE)
+        marks.attach(written[1].id, mark_id=mark.id)  # notes/todo.md alone
+
+        listed = files.list_directories(
+            FileFilter(root_id=root.id, directory=Path(), mark_id=mark.id)
+        )
+
+        assert listed == [DirectorySummary(name=NOTES, file_count=1)]
+
+
+class TestDeletingFiles:
     @staticmethod
     def test_delete_many_takes_the_marks_off_with_it(*, marked_file, files, marks):
         mark = marks.create(INVOICE)

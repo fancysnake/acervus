@@ -76,11 +76,15 @@ Scan the other roots the same way.
 
 ## Mark something
 
-Press ++f++ for the files screen. It lists every indexed file, with the root it
-came from, its path within that root, and its size. Under the table, two lines
-show what the file under the cursor carries and which stack it sits in.
+Press ++f++ for the files screen. It opens at the top of your first root and
+browses one directory at a time: the subdirectories first, with how many files
+each holds, then the files sitting in the directory itself. ++enter++ opens the
+directory under the cursor, ++backspace++ goes back up, and ++r++ moves to the
+next root. Under the table, two lines show what the file under the cursor
+carries and which stack it sits in.
 
-Move to a file and press ++a++. A prompt asks for a mark name; type `invoice`
+Walk down to a file and press ++a++. A prompt asks for a mark name; type
+`invoice`
 and press ++enter++. The status line confirms it, and the marks line for that
 file now reads `Marks: invoice`. The mark did not exist a moment ago — putting
 it on a file is what created it.
@@ -96,14 +100,17 @@ first — a `•` appears in front of every file selected — and then ++a++, ++
 
 Still on the files screen, press ++k++ to step the mark filter forward. It
 cycles through *any mark*, then each mark in turn, then *unmarked*, and back
-around. The line above the table always says what you are looking at:
+around. The line above the table always says where you are and what you are
+looking at:
 
 ```text
-Showing: all roots, invoice, any stack
+Showing: docs > receipts, invoice, any stack
 ```
 
-++r++ does the same for roots and ++c++ for stacks, and the three filters
-combine — root `docs`, mark `invoice`, unstacked, if that is what you need.
+++c++ does the same for stacks, and the two combine. They narrow the directory
+rows too: a directory holding nothing that matches drops out of the listing, so
+filtering by *unmarked* walks you straight to the part of the tree you have not
+organized yet.
 
 ## Where next
 
