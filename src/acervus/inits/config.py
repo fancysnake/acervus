@@ -23,5 +23,4 @@ def load_config(path: Path | None = None) -> AcervusConfig | None:
     if not config_path.exists():
         return None
     with config_path.open("rb") as f:
-        data: dict[str, object] = tomllib.load(f)
-    return ConfigFile.model_validate(data).acervus
+        return ConfigFile.model_validate(tomllib.load(f)).acervus  # type: ignore [misc]

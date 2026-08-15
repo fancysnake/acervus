@@ -88,8 +88,11 @@ class PathlibFilesystemReader(FilesystemReaderProtocol):
             RootLostError: The error is the root's own, so there is no subtree
                 to pass over and nothing was walked at all.
         """
-        named: object = error.filename
-        failed = None if named is None else Path(str(named))
+        failed = (
+            None
+            if error.filename is None  # type: ignore [misc]
+            else Path(str(error.filename))  # type: ignore [misc]
+        )
         if failed is None or failed == root or not failed.is_relative_to(root):
             message = LOST.format(root=root)
             raise RootLostError(message) from error
