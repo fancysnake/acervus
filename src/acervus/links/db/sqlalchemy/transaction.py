@@ -29,6 +29,10 @@ class SessionTransaction(TransactionProtocol):
         cancelled worker would otherwise leave the flushed writes pending on
         the shared session, for the next block to commit as its own.
 
+        The commit is guarded for the same reason. A commit that raises leaves
+        the session inactive with its writes still pending, so a later block
+        would either commit them or fail outright on a session nobody reset.
+
         Yields:
             Control to the caller, whose writes commit together.
         """
@@ -37,4 +41,8 @@ class SessionTransaction(TransactionProtocol):
         except BaseException:
             self._session.rollback()
             raise
-        self._session.commit()
+        try:
+            self._session.commit()
+        except BaseException:
+            self._session.rollback()
+            raise
