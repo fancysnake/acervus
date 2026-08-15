@@ -1,6 +1,7 @@
 """Application entry point — loads config, builds the container, runs the TUI."""
 
 import sys
+import tomllib
 from contextlib import closing
 
 from pydantic import ValidationError
@@ -36,11 +37,13 @@ def main() -> None:
     """Load config, reconcile the roots it names, and run the Acervus TUI.
 
     A config file that is missing and one that is malformed are both the same
-    kind of mistake, so both are reported and neither raises.
+    kind of mistake, so both are reported and neither raises. Malformed covers
+    both halves of the reading: TOML that does not parse and TOML that parses
+    into the wrong shape.
     """
     try:
         config = load_config()
-    except ValidationError as error:
+    except (tomllib.TOMLDecodeError, ValidationError) as error:
         sys.stderr.write(BAD_CONFIG_MESSAGE.format(error=error))
         sys.exit(1)
     if config is None:

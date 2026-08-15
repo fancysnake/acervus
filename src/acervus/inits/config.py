@@ -2,7 +2,6 @@
 
 import tomllib
 from pathlib import Path
-from typing import cast
 
 from acervus.pacts.config import AcervusConfig, ConfigFile
 
@@ -12,8 +11,10 @@ DEFAULT_CONFIG_PATH = Path("~/.config/acervus/config.toml")
 def load_config(path: Path | None = None) -> AcervusConfig | None:
     """Read the config file, or report that there is none to read.
 
-    A file that is there but malformed raises a Pydantic validation error
-    naming what is wrong, rather than a bare ``KeyError`` for the section.
+    A file that is there but malformed raises rather than returning ``None``:
+    ``tomllib.TOMLDecodeError`` if it does not parse, a Pydantic validation
+    error naming what is wrong if it parses into the wrong shape. Neither is
+    swallowed here, so the entry point can name the file that is at fault.
 
     Returns:
         The configuration, or ``None`` if no file sits at the path.
@@ -22,5 +23,5 @@ def load_config(path: Path | None = None) -> AcervusConfig | None:
     if not config_path.exists():
         return None
     with config_path.open("rb") as f:
-        data = cast("dict[str, object]", tomllib.load(f))
+        data: dict[str, object] = tomllib.load(f)
     return ConfigFile.model_validate(data).acervus
