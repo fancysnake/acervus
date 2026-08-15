@@ -100,9 +100,12 @@ and nowhere else. Two things go wrong with it:
 
 - **The directory does not exist yet.** fence skips a rule for a missing path,
   so the directory Acervus tries to create is denied. Run
-  `mkdir -p ~/.local/share/acervus` first.
+  `mkdir -p ~/.local/share/acervus/tmp` first.
 - **`db_path` points somewhere else.** Change the path in the config and
   `allowWrite` in `fence.acervus.jsonc` has to name the same directory.
+- **`TMPDIR` is unset.** Shared `/tmp` is read-only under the profile, so a
+  statement large enough to make SQLite spill fails. Start `acre` with
+  `TMPDIR=~/.local/share/acervus/tmp`.
 
 A scan that finds nothing under a root of credentials is the profile too: those
 paths are denied *reads*, deliberately.

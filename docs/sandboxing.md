@@ -9,8 +9,9 @@ promise the operating system enforces, run `acre` under
 [fence](#what-fence-is), with the profile the repository ships:
 
 ```bash
-mkdir -p ~/.local/share/acervus
-fence --settings fence.acervus.jsonc -- mise exec -- poetry run acre
+mkdir -p ~/.local/share/acervus/tmp
+TMPDIR=~/.local/share/acervus/tmp \
+  fence --settings fence.acervus.jsonc -- mise exec -- poetry run acre
 ```
 
 Now a bug in a scan cannot touch an indexed file even if it tries: the kernel
@@ -23,24 +24,28 @@ refuses the write.
 | | |
 |---|---|
 | **Reads** | anywhere — the point is to walk roots wherever they live |
-| **Except** | `~/.ssh/id_*`, `~/.ssh/*.pem`, `~/.gnupg/`, `~/.aws/`, `~/.config/gcloud/`, `~/.netrc`, `~/.git-credentials`, `~/.pypirc` |
-| **Writes** | `~/.local/share/acervus` and `/tmp` — nothing else |
+| **Except** | `~/.ssh/`, `~/.gnupg/`, `~/.aws/`, `~/.config/gcloud/`, `~/.netrc`, `~/.git-credentials`, `~/.pypirc` |
+| **Writes** | `~/.local/share/acervus` — nothing else |
 | **Network** | none: no domains, no listening sockets, no outbound connections |
 | **Terminal** | a PTY is allowed, because the interface is a terminal application |
 
 Everything not named under `allowWrite` is read-only, which includes every root
-you index. `/tmp` is there because SQLite spills temporary files for sorts and
-large statements; it is not somewhere Acervus writes by choice.
+you index. Shared `/tmp` is read-only too, which is why the command above sets
+`TMPDIR`: SQLite spills temporary files for sorts and large statements, and
+pointing those at `~/.local/share/acervus/tmp` keeps them inside the one tree
+Acervus already owns rather than widening the profile to reach outside it.
 
-The credential globs are a denied *read*. An indexer has no business opening a
-private key, and refusing to is cheaper than trusting it not to.
+The credential entries are a denied *read*, and each names a whole directory
+rather than the filenames convention favours — a key called `work_key` is still
+a key. An indexer has no business opening a private key, and refusing to is
+cheaper than trusting it not to.
 
 ## Before the first run
 
-Create the database directory yourself:
+Create the database directory and its temporary directory yourself:
 
 ```bash
-mkdir -p ~/.local/share/acervus
+mkdir -p ~/.local/share/acervus/tmp
 ```
 
 fence skips a rule whose path does not exist, and Acervus creates the parent of

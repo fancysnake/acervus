@@ -1,6 +1,8 @@
 // Sandbox profile for running Acervus itself (not for running the toolchain).
 //
-//   fence --settings fence.acervus.jsonc -- mise run p run acre
+//   mkdir -p ~/.local/share/acervus/tmp
+//   TMPDIR=~/.local/share/acervus/tmp \
+//     fence --settings fence.acervus.jsonc -- mise run p run acre
 //
 // Acervus indexes files where they lie: it reads roots and writes nothing but
 // its own SQLite database. This profile pins that promise down with Landlock,
@@ -25,9 +27,12 @@
     // Reads stay open — the whole point is to walk roots wherever they live.
     // Credentials are the exception: an indexer has no business reading them.
     // Drop an entry here if you ever index a root that contains one.
+    //
+    // The ssh, gnupg, aws and gcloud entries deny the whole directory rather
+    // than the key filenames convention suggests: a key named work_key is
+    // still a key, and nothing sitting beside one is worth indexing either.
     "denyRead": [
-      "~/.ssh/id_*",
-      "~/.ssh/*.pem",
+      "~/.ssh/**",
       "~/.gnupg/**",
       "~/.aws/**",
       "~/.config/gcloud/**",
@@ -36,20 +41,18 @@
       "~/.pypirc"
     ],
 
-    // Everything not listed here is read-only. The database directory must
-    // already exist: fence skips rules for missing paths, and Repositories.session
-    // calls db_path.parent.mkdir(), which would then be denied.
+    // Everything not listed here is read-only, and the one writable tree is
+    // Acervus's own. Shared /tmp stays out of it: SQLite spills temp files for
+    // sorts, VACUUM and large statements, so TMPDIR points those at a
+    // subdirectory of this tree instead of widening the profile to reach them.
     //
-    //   mkdir -p ~/.local/share/acervus
+    // Both directories must already exist — hence the mkdir above: fence skips
+    // rules for missing paths, and Repositories.session calls
+    // db_path.parent.mkdir(), which would then be denied.
     //
     // Point db_path somewhere else in ~/.config/acervus/config.toml and this
     // list has to follow it.
-    "allowWrite": [
-      "~/.local/share/acervus",
-      "~/.local/share/acervus/**",
-      // SQLite spills temp files here for sorts, VACUUM and large statements.
-      "/tmp"
-    ],
+    "allowWrite": ["~/.local/share/acervus", "~/.local/share/acervus/**"],
 
     "denyWrite": []
   }
