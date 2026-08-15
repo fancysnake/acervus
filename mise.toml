@@ -4,7 +4,9 @@ jobs = 1
 
 [tools]
 python = "3.14"
-poetry = { version = "2.3.2", pyproject = "{{ config_root }}/pyproject.toml" }
+pipx = "1.16.7"
+"pipx:" = "1.16.7"
+"pipx:poetry" = { version = "2.4.1", pyproject = "/home/radek/acervus/pyproject.toml" }
 
 [env]
 # Mise creates and activates this virtualenv automatically
