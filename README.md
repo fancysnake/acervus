@@ -79,9 +79,14 @@ The app opens on the roots screen, listing each configured `alias -> path`.
 | `q` | anywhere | Quit |
 | `s` | roots | Scan the root under the cursor and report what changed |
 | `r` / `k` / `c` | files | Cycle the filter by root, by mark, by stack |
-| `a` / `x` | files | Put a mark on the file under the cursor, take one off |
-| `s` / `u` | files | Put the file in a stack, take it out of its stack |
+| `space` | files | Select the file under the cursor, or deselect it |
+| `a` / `x` | files | Put a mark on every file selected, take one off |
+| `s` / `u` | files | Put them in a stack, take them out of their stacks |
 | `escape` | any screen | Back |
+
+With nothing selected, the four operations are aimed at the file under the
+cursor. The listing is read a page at a time, so a root holding hundreds of
+thousands of files draws at once and reads the rest as the cursor moves down.
 
 A scan inserts files the root has and the index lacks, rewrites those whose size
 or mtime moved, and drops those the root no longer has. Marks and stacks come

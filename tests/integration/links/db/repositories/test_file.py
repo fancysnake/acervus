@@ -23,6 +23,17 @@ INVOICE = "invoice"
 HOLIDAY = "holiday"
 TRIP = "iceland trip"
 SPANNING = BATCH * 2 + 1  # two full statements and a remainder
+PAGE = 2  # a page narrower than the listing, so where it cuts is visible
+PAGED = PAGE * 2 + 1  # two full pages and a remainder
+
+
+def _numbered_paths(count: int) -> list[Path]:
+    """Return that many paths, named so they sort the way they are built.
+
+    Returns:
+        Paths in the order the listing returns them, so order is assertable.
+    """
+    return [Path(f"notes/{index:04d}.md") for index in range(count)]
 
 
 def _spanning_paths() -> list[Path]:
@@ -31,7 +42,7 @@ def _spanning_paths() -> list[Path]:
     Returns:
         Paths that sort the way they are built, so order is assertable.
     """
-    return [Path(f"notes/{index:04d}.md") for index in range(SPANNING)]
+    return _numbered_paths(SPANNING)
 
 
 class TestFileRepository:
@@ -136,6 +147,44 @@ class TestFileRepository:
     @staticmethod
     def test_list_all_is_empty_before_any_write(*, files):
         assert files.list_all() == []
+
+    @staticmethod
+    def test_list_all_reads_at_most_a_page(*, a_file, roots, files):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        files.upsert_many([a_file(root.id, path) for path in _numbered_paths(PAGED)])
+
+        assert len(files.list_all(limit=PAGE)) == PAGE
+
+    @staticmethod
+    def test_list_all_takes_the_page_at_the_offset(*, a_file, roots, files):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        paths = _numbered_paths(PAGED)
+        files.upsert_many([a_file(root.id, path) for path in paths])
+
+        listed = files.list_all(limit=PAGE, offset=PAGE)
+
+        assert [file.relative_path for file in listed] == paths[PAGE : PAGE + PAGE]
+
+    @staticmethod
+    def test_list_all_reads_nothing_past_the_end(*, a_file, roots, files):
+        root = roots.upsert_many([{"alias": DOCS, "path": DOCS_PATH}])[0]
+        files.upsert_many([a_file(root.id, path) for path in _numbered_paths(PAGE)])
+
+        assert files.list_all(limit=PAGE, offset=PAGE) == []
+
+    @staticmethod
+    def test_list_all_pages_within_the_filter(*, a_file, roots, files):
+        docs, photos = roots.upsert_many(
+            [{"alias": DOCS, "path": DOCS_PATH}, {"alias": PHOTOS, "path": PHOTOS_PATH}]
+        )
+        files.upsert_many(
+            [a_file(docs.id, path) for path in _numbered_paths(PAGED)]
+            + [a_file(photos.id, INBOX)]
+        )
+
+        listed = files.list_all(FileFilter(root_id=photos.id), limit=PAGE)
+
+        assert [file.relative_path for file in listed] == [INBOX]
 
     @staticmethod
     def test_delete_many(*, a_file, roots, files):

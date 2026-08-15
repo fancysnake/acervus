@@ -88,6 +88,10 @@ it on a file is what created it.
 Press ++x++ to take a mark off again, naming it the same way. Press ++s++ to
 put the file in a stack, and ++u++ to take it back out.
 
+To do any of that to several files at once, press ++space++ on each of them
+first — a `•` appears in front of every file selected — and then ++a++, ++x++,
+++s++ or ++u++ as before.
+
 ## Find it again
 
 Still on the files screen, press ++k++ to step the mark filter forward. It

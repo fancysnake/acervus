@@ -19,5 +19,10 @@ def fill_table(
     table.cursor_type = "row"
     table.clear(columns=True)
     table.add_columns(*columns)
+    append_rows(table, rows=rows)
+
+
+def append_rows(table: DataTable[str], *, rows: Iterable[Sequence[str]]) -> None:
+    """Put these rows under whatever the table already holds."""
     for row in rows:
         table.add_row(*row)

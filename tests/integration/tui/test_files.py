@@ -10,6 +10,8 @@ from pathlib import Path
 import pytest
 from textual.widgets import DataTable, Static
 
+from acervus.gates.tui.textual.files import LOOKAHEAD, PAGE
+
 DOCS = "docs"
 PHOTOS = "photos"
 INBOX = "inbox.md"
@@ -18,8 +20,25 @@ CONTENT = "hello"
 FILES_KEY = "f"
 FILTER_KEY = "r"
 BACK_KEY = "escape"
+SELECT_KEY = "space"
+DOWN_KEY = "down"
+END_KEY = "ctrl+end"
+ADD_KEY = "a"
+REMOVE_KEY = "x"
+SUBMIT_KEY = "enter"
+INVOICE = "invoice"
 NO_FILES_MESSAGE = "No files indexed"
 ALL_ROOTS = "all roots"
+PICKED = "•"
+UNPICKED = " "
+PICKED_BOTH = "2 selected"  # what the status says with both indexed files picked
+PARTLY_DONE = f"{INVOICE}: 1 of 2 files."  # one of the two selected carried it
+# The files table reads: selection mark, root, path, size.
+PICK_CELL = 0
+ROOT_CELL = 1
+PATH_CELL = 2
+SIZE_CELL = 3
+OVER_A_PAGE = PAGE + LOOKAHEAD + 1  # far enough past the first page to reach for more
 
 
 @pytest.fixture(name="trees")
@@ -33,10 +52,35 @@ def trees_fixture(*, tmp_path):
     return {DOCS: docs, PHOTOS: photos}
 
 
+# More files than one page holds, written to the index rather than to disk:
+# what paging does is a property of the listing, not of the files behind it.
+@pytest.fixture(name="crowded")
+def crowded_fixture(*, services, repositories, tmp_path):
+    services.roots.sync({DOCS: tmp_path / DOCS})
+    root = services.roots.list_all()[0]
+    with repositories.transaction.atomic():
+        repositories.files.upsert_many(
+            [
+                {
+                    "root_id": root.id,
+                    "relative_path": Path(f"{index:04d}.txt"),
+                    "size": 0,
+                    "mtime": 0.0,
+                }
+                for index in range(OVER_A_PAGE)
+            ]
+        )
+    return services
+
+
 def index(services, trees) -> None:
     services.roots.sync(trees)
     for alias in trees:
         services.scan.scan(alias)
+
+
+async def type_name(pilot, name) -> None:
+    await pilot.press(*name, SUBMIT_KEY)
 
 
 class TestFilesScreen:
@@ -58,7 +102,7 @@ class TestFilesScreen:
             await pilot.press(FILES_KEY)
             table = pilot.app.screen.query_one("#files", DataTable)
 
-            assert table.get_row_at(0)[:2] == [DOCS, INBOX]
+            assert table.get_row_at(0)[ROOT_CELL:SIZE_CELL] == [DOCS, INBOX]
 
     @staticmethod
     async def test_a_row_carries_the_size(*, app, services, trees):
@@ -68,7 +112,7 @@ class TestFilesScreen:
             await pilot.press(FILES_KEY)
             table = pilot.app.screen.query_one("#files", DataTable)
 
-            assert table.get_row_at(0)[2] == str(len(CONTENT))
+            assert table.get_row_at(0)[SIZE_CELL] == str(len(CONTENT))
 
     @staticmethod
     async def test_a_nested_path_is_shown_whole(*, app, services, trees):
@@ -78,7 +122,7 @@ class TestFilesScreen:
             await pilot.press(FILES_KEY)
             table = pilot.app.screen.query_one("#files", DataTable)
 
-            assert table.get_row_at(1)[:2] == [PHOTOS, str(Path(SNAP))]
+            assert table.get_row_at(1)[ROOT_CELL:SIZE_CELL] == [PHOTOS, str(Path(SNAP))]
 
     @staticmethod
     async def test_an_empty_index_says_so(*, app, services, trees):
@@ -121,7 +165,7 @@ class TestFilesScreen:
             label = pilot.app.screen.query_one("#file-filter", Static)
 
             assert table.row_count == 1
-            assert table.get_row_at(0)[0] == DOCS
+            assert table.get_row_at(0)[ROOT_CELL] == DOCS
             assert DOCS in str(label.render())
 
     @staticmethod
@@ -135,7 +179,7 @@ class TestFilesScreen:
             table = pilot.app.screen.query_one("#files", DataTable)
 
             assert table.row_count == 1
-            assert table.get_row_at(0)[0] == PHOTOS
+            assert table.get_row_at(0)[ROOT_CELL] == PHOTOS
 
     @staticmethod
     async def test_the_filter_wraps_back_to_all_roots(*, app, services, trees):
@@ -171,3 +215,123 @@ class TestFilesScreen:
 
             assert pilot.app.screen.query("#roots")
             assert not pilot.app.screen.query("#files")
+
+
+class TestSelectingFiles:
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_space_picks_the_file_under_the_cursor(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, SELECT_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.get_row_at(0)[PICK_CELL] == PICKED
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_space_again_lets_it_go(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, SELECT_KEY, SELECT_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.get_row_at(0)[PICK_CELL] == UNPICKED
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_it_says_how_many_are_picked(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, SELECT_KEY, DOWN_KEY, SELECT_KEY)
+            status = pilot.app.screen.query_one("#status", Static)
+
+            assert PICKED_BOTH in str(status.render())
+
+    @staticmethod
+    async def test_a_mark_reaches_every_picked_file(*, app, indexed):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, SELECT_KEY, DOWN_KEY, SELECT_KEY, ADD_KEY)
+            await type_name(pilot, INVOICE)
+
+        carried = [
+            mark.name
+            for file in indexed.files.list_all()
+            for mark in indexed.marks.list_for_file(file.id)
+        ]
+        assert carried == [INVOICE, INVOICE]  # both files
+
+    @staticmethod
+    async def test_a_mark_reaches_a_picked_file_the_cursor_has_left(*, app, indexed):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, SELECT_KEY, DOWN_KEY, ADD_KEY)
+            await type_name(pilot, INVOICE)
+
+        first, second = indexed.files.list_all()
+        assert [mark.name for mark in indexed.marks.list_for_file(first.id)] == [
+            INVOICE
+        ]
+        assert indexed.marks.list_for_file(second.id) == []
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_it_reports_how_many_it_reached(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, SELECT_KEY, DOWN_KEY, SELECT_KEY, ADD_KEY)
+            await type_name(pilot, INVOICE)
+            status = pilot.app.screen.query_one("#status", Static)
+
+            assert f"Marked 2 files {INVOICE}" in str(status.render())
+
+    @staticmethod
+    async def test_a_refusal_over_one_file_leaves_the_rest_done(*, app, indexed):
+        async with app.run_test() as pilot:
+            # Only the first file carries the mark, so taking it off both is
+            # refused for the second — the mark is gone by the time it is asked.
+            await pilot.press(FILES_KEY, ADD_KEY)
+            await type_name(pilot, INVOICE)
+            await pilot.press(SELECT_KEY, DOWN_KEY, SELECT_KEY, REMOVE_KEY)
+            await type_name(pilot, INVOICE)
+            status = pilot.app.screen.query_one("#status", Static)
+
+            assert PARTLY_DONE in str(status.render())
+
+        assert indexed.marks.list_all() == []  # it reached the file carrying it
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_a_filter_step_lets_the_selection_go(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, SELECT_KEY, FILTER_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.get_row_at(0)[PICK_CELL] == UNPICKED
+
+
+class TestReadingTheListingAPageAtATime:
+    @staticmethod
+    # The fixture indexes more files than one page holds.
+    @pytest.mark.usefixtures("crowded")
+    async def test_it_shows_a_page_before_reading_the_rest(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.row_count == PAGE
+
+    @staticmethod
+    @pytest.mark.usefixtures("crowded")
+    async def test_the_cursor_nearing_the_end_reads_the_next_page(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, END_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.row_count == OVER_A_PAGE
+
+    @staticmethod
+    async def test_a_file_on_a_later_page_can_be_marked(*, app, crowded):
+        async with app.run_test() as pilot:
+            # The first jump ends on the last row read so far, which is what
+            # reads the rest; the second reaches the end of the whole listing.
+            await pilot.press(FILES_KEY, END_KEY, END_KEY, ADD_KEY)
+            await type_name(pilot, INVOICE)
+
+        last = crowded.files.list_all()[-1]
+        assert [mark.name for mark in crowded.marks.list_for_file(last.id)] == [INVOICE]

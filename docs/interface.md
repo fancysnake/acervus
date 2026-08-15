@@ -38,7 +38,8 @@ configured.` means the `[acervus.roots]` table is empty.
 ## Files
 
 Every indexed file, as `Root`, `Path` and `Size` in bytes, narrowed by whatever
-filters are on. `Path` is relative to the root.
+filters are on. `Path` is relative to the root. The unheaded column in front of
+`Root` holds a `•` on each selected file.
 
 Under the table are three lines: the marks the file under the cursor carries,
 the stack it sits in, and the result of whatever you last did. They follow the
@@ -49,15 +50,39 @@ cursor as it moves.
 | ++r++ | step the root filter |
 | ++k++ | step the mark filter |
 | ++c++ | step the stack filter |
-| ++a++ | put a mark on the file under the cursor |
-| ++x++ | take a mark off the file under the cursor |
-| ++s++ | put the file under the cursor in a stack |
-| ++u++ | take the file under the cursor out of its stack |
+| ++space++ | select the file under the cursor, or deselect it |
+| ++a++ | put a mark on every file selected |
+| ++x++ | take a mark off every file selected |
+| ++s++ | put every file selected in a stack |
+| ++u++ | take every file selected out of its stack |
 
 The filter keys take a consonant from the noun, since ++m++ and ++s++ are
 spoken for: mar<strong>k</strong>, sta<strong>c</strong>k.
 
 Marking is covered in [Marks and stacks](marks-and-stacks.md).
+
+### Selecting
+
+++space++ selects the file under the cursor, putting a `•` in front of it, and
+++space++ again deselects it. The status line says how many are selected.
+
+The four operations are aimed at the selection. With nothing selected they are
+aimed at the file under the cursor instead, so a screen you never press
+++space++ on behaves exactly as before.
+
+A selection is a set of files, not of rows, so it survives the cursor moving
+away and the rows being redrawn. Stepping a filter clears it — the rows the
+filter reads are not the rows that were selected.
+
+### Long lists
+
+The table is read a page at a time. A root holding hundreds of thousands of
+files would otherwise have to be read out in full before a single row could be
+drawn, which is a wait long enough to look like a hang; instead the first page
+is drawn at once and the next is read as the cursor comes near the end of what
+is on screen. Moving down through the list, you will not notice; ++ctrl+end++
+jumps to the end of what has been read so far, so on a very long list it takes
+more than one press to reach the true end.
 
 ### Filtering
 

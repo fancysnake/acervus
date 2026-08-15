@@ -71,8 +71,17 @@ class FileRepository(FileRepositoryProtocol):
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def list_all(self, scope: FileFilter | None = None) -> list[FileDTO]:
+    def list_all(
+        self,
+        scope: FileFilter | None = None,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[FileDTO]:
         """Return indexed files, narrowed by the filter when one is given.
+
+        Root and relative path are unique together, so the order is total and
+        a page taken from it holds the same files however often it is read.
 
         Returns:
             The matching files, ordered by root and then relative path.
@@ -85,6 +94,8 @@ class FileRepository(FileRepositoryProtocol):
             statement = statement.where(_carrying(narrowed.mark_id))
         if narrowed.stack_id is not None:
             statement = statement.where(_sitting_in(narrowed.stack_id))
+        if limit is not None:
+            statement = statement.limit(limit).offset(offset)
         return [
             FileDTO.model_validate(record)
             for record in self._session.scalars(statement).all()

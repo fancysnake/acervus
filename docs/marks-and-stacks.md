@@ -1,15 +1,20 @@
 # Marks and stacks
 
-Both are made on the files screen, on the file under the cursor.
+Both are made on the files screen, on the files selected with ++space++ — or,
+with nothing selected, on the file under the cursor.
 
 | Key | Does |
 |-----|------|
-| ++a++ | put a mark on the file — asks for a name |
-| ++x++ | take a mark off the file — asks for a name |
-| ++s++ | put the file in a stack — asks for a name |
-| ++u++ | take the file out of its stack — asks nothing |
+| ++a++ | put a mark on them — asks for a name |
+| ++x++ | take a mark off them — asks for a name |
+| ++s++ | put them in a stack — asks for a name |
+| ++u++ | take them out of their stacks — asks nothing |
 
-++escape++ at a prompt backs out and changes nothing.
+++escape++ at a prompt backs out and changes nothing. A name the rules below
+reject is refused before anything is written. Where a refusal is about one file
+rather than the name — taking a mark off a file that does not carry it — the
+rest of the selection is done all the same, and the status line says how far it
+got: `invoice: 2 of 5 files.`
 
 ## Marks
 

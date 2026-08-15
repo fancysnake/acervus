@@ -26,6 +26,7 @@ STACK_FILTER_KEY = "c"
 ANY_STACK = "any stack"
 UNSTACKED_ONLY = "unstacked"
 NO_MATCHES_MESSAGE = "No files match this filter"
+PATH_CELL = 2  # the files table reads: selection mark, root, path, size
 NO_STACKS_MESSAGE = "No stacks yet"
 SITS_LOOSE = "Stack: none"
 EMPTY_NAME = "   "
@@ -227,7 +228,7 @@ class TestFilteringByStack:
             label = pilot.app.screen.query_one("#file-filter", Static)
 
             assert table.row_count == 1
-            assert table.get_row_at(0)[1] == INBOX
+            assert table.get_row_at(0)[PATH_CELL] == INBOX
             assert TRIP in str(label.render())
 
     @staticmethod
@@ -240,7 +241,7 @@ class TestFilteringByStack:
             label = pilot.app.screen.query_one("#file-filter", Static)
 
             assert table.row_count == 1
-            assert table.get_row_at(0)[1] == NOTES
+            assert table.get_row_at(0)[PATH_CELL] == NOTES
             assert UNSTACKED_ONLY in str(label.render())
 
     @staticmethod
@@ -293,4 +294,4 @@ class TestFilteringByStack:
             table = pilot.app.screen.query_one("#files", DataTable)
 
             assert table.row_count == 1  # in the stack and carrying the mark
-            assert table.get_row_at(0)[1] == INBOX
+            assert table.get_row_at(0)[PATH_CELL] == INBOX

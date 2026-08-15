@@ -76,8 +76,19 @@ class ScanResult:
 class FileRepositoryProtocol(Protocol):
     """Data access for files."""
 
-    def list_all(self, scope: FileFilter | None = None) -> list[FileDTO]:
-        """Return indexed files, narrowed by the filter when one is given."""
+    def list_all(
+        self,
+        scope: FileFilter | None = None,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[FileDTO]:
+        """Return indexed files, narrowed by the filter when one is given.
+
+        A caller that shows the listing a page at a time passes ``limit`` and
+        walks ``offset`` forward by it. The order is total, so a page read this
+        way holds what it would have held had the whole listing been read.
+        """
 
     def list_by_root(self, root_id: int) -> list[FileDTO]:
         """Return every indexed file under this root."""
