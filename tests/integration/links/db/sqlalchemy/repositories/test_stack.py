@@ -4,7 +4,12 @@ import pytest
 from sqlalchemy.orm import Session
 
 from acervus.links.db.sqlalchemy import StackRepository
-from acervus.pacts.stack import StackDTO, StackNotFoundError, StackSummary
+from acervus.pacts.stack import (
+    StackDTO,
+    StackFileNotFoundError,
+    StackNotFoundError,
+    StackSummary,
+)
 
 UNKNOWN_ID = 404
 TRIP = "iceland trip"
@@ -93,12 +98,18 @@ class TestStackRepository:
         assert stacks.list_all()[0].file_count == 1 + 1  # and the summary agrees
 
     @staticmethod
-    def test_setting_the_stack_of_an_unknown_file_is_harmless(*, stacks):
+    def test_setting_the_stack_of_an_unknown_file_is_refused(*, stacks):
         stack = stacks.create(TRIP)
 
-        stacks.set_for_file(UNKNOWN_ID, stack_id=stack.id)
+        with pytest.raises(StackFileNotFoundError):
+            stacks.set_for_file(UNKNOWN_ID, stack_id=stack.id)
 
         assert stacks.count_files(stack.id) == 0
+
+    @staticmethod
+    def test_taking_an_unknown_file_out_of_a_stack_is_refused(*, stacks):
+        with pytest.raises(StackFileNotFoundError):
+            stacks.set_for_file(UNKNOWN_ID, stack_id=None)
 
     @staticmethod
     def test_count_files_is_zero_for_an_unknown_stack(*, stacks):

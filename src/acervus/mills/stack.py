@@ -41,6 +41,11 @@ class StackService(StackServiceProtocol):
         A file sits in at most one stack, so this moves rather than copies: the
         stack the file was in loses it, and is deleted if that leaves it empty.
 
+        A file id nothing indexes comes back out of the repository as
+        ``StackFileNotFoundError``. A stack created for it a moment earlier
+        goes back with the transaction, so a name aimed at a file a scan has
+        since deleted leaves nothing behind.
+
         Returns:
             The stack the file now sits in.
         """

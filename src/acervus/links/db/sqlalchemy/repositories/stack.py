@@ -8,6 +8,7 @@ from sqlalchemy.sql.functions import count
 from acervus.links.db.sqlalchemy.models import File, Stack
 from acervus.pacts.stack import (
     StackDTO,
+    StackFileNotFoundError,
     StackNotFoundError,
     StackRepositoryProtocol,
     StackSummary,
@@ -87,10 +88,18 @@ class StackRepository(StackRepositoryProtocol):
         return StackDTO.model_validate(record)
 
     def set_for_file(self, file_id: int, *, stack_id: int | None) -> None:
-        """Put this file in this stack, or take it out of any stack at ``None``."""
-        if (record := self._session.get(File, file_id)) is not None:
-            record.stack_id = stack_id
-            self._session.flush()
+        """Put this file in this stack, or take it out of any stack at ``None``.
+
+        Raises:
+            StackFileNotFoundError: No file has this id. Passing over it
+                silently would let a caller create a stack, move nothing into
+                it and commit both, leaving a stack no file sits in.
+        """
+        if (record := self._session.get(File, file_id)) is None:
+            message = f"No indexed file has id {file_id!r}."
+            raise StackFileNotFoundError(message)
+        record.stack_id = stack_id
+        self._session.flush()
 
     def count_files(self, stack_id: int) -> int:
         """Return how many files sit in this stack.

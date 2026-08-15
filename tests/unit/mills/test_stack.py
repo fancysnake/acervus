@@ -8,6 +8,7 @@ from acervus.mills.stack import StackService
 from acervus.pacts.stack import (
     InvalidStackNameError,
     StackDTO,
+    StackFileNotFoundError,
     StackNotFoundError,
     StackRepositoryProtocol,
     StackSummary,
@@ -103,6 +104,34 @@ class TestAdd:
         transaction.atomic.assert_called_once_with()
         transaction.atomic.return_value.__enter__.assert_called_once_with()
         transaction.atomic.return_value.__exit__.assert_called_once()
+
+
+class TestAddToAFileThatIsNotThere:
+    """A name aimed at a file a scan has since deleted leaves no stack behind."""
+
+    @staticmethod
+    def test_it_raises_what_the_repository_raised(*, service, stacks):
+        stacks.set_for_file.side_effect = StackFileNotFoundError(FILE_ID)
+
+        with pytest.raises(StackFileNotFoundError):
+            service.add(FILE_ID, name=TRIP)
+
+    @staticmethod
+    def test_the_stack_it_created_goes_back_with_the_transaction(
+        *, service, stacks, transaction
+    ):
+        stacks.read_by_name.side_effect = StackNotFoundError(TRIP)
+        stacks.create.return_value = TRIP_STACK
+        stacks.set_for_file.side_effect = StackFileNotFoundError(FILE_ID)
+
+        with pytest.raises(StackFileNotFoundError):
+            service.add(FILE_ID, name=TRIP)
+
+        # Nothing undoes the create by hand: it is the block exiting on the
+        # exception that rolls it back, so the boundary is what is asserted.
+        transaction.atomic.assert_called_once_with()
+        transaction.atomic.return_value.__exit__.assert_called_once()
+        stacks.delete.assert_not_called()
 
 
 class TestAddMoves:

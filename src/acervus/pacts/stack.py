@@ -14,6 +14,10 @@ class InvalidStackNameError(ValueError):
     """The proposed stack name breaks an invariant."""
 
 
+class StackFileNotFoundError(Exception):
+    """No indexed file has the identifier a stack was to be set for."""
+
+
 class StackDTO(BaseModel):
     """A group a file can belong to, as read from the index."""
 
@@ -48,7 +52,11 @@ class StackRepositoryProtocol(Protocol):
         """Create a stack with this name and return it."""
 
     def set_for_file(self, file_id: int, *, stack_id: int | None) -> None:
-        """Put this file in this stack, or take it out of any stack at ``None``."""
+        """Put this file in this stack, or take it out of any stack at ``None``.
+
+        Raises ``StackFileNotFoundError`` if no file has this id, so a caller
+        inside a transaction never commits a stack nothing was moved into.
+        """
 
     def count_files(self, stack_id: int) -> int:
         """Return how many files sit in this stack."""
@@ -67,7 +75,11 @@ class StackServiceProtocol(Protocol):
         """Return the stack this file sits in, if it sits in one."""
 
     def add(self, file_id: int, *, name: str) -> StackDTO:
-        """Move this file into the stack of this name, creating it if it is new."""
+        """Move this file into the stack of this name, creating it if it is new.
+
+        Raises ``StackFileNotFoundError`` if no file has this id, leaving no
+        stack behind.
+        """
 
     def remove(self, file_id: int) -> None:
         """Take this file out of whatever stack it sits in."""

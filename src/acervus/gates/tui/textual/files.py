@@ -13,7 +13,7 @@ from acervus.gates.tui.textual.prompt import NamePrompt
 from acervus.gates.tui.textual.table import append_rows, fill_table
 from acervus.pacts.file import BARE, Bare, FileFilter
 from acervus.pacts.mark import InvalidMarkNameError, MarkNotFoundError
-from acervus.pacts.stack import InvalidStackNameError
+from acervus.pacts.stack import InvalidStackNameError, StackFileNotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -68,7 +68,13 @@ STACKED_MANY = "Put {count} files in {name}."
 TOOK_OUT = "Took {path} out of its stack."
 TOOK_OUT_MANY = "Took {count} files out of their stacks."
 PARTLY = "{name}: {done} of {count} files."
-REJECTIONS = (InvalidMarkNameError, InvalidStackNameError, MarkNotFoundError)
+REJECTIONS = (
+    InvalidMarkNameError,
+    InvalidStackNameError,
+    MarkNotFoundError,
+    # A scan running on its own thread can delete a file the rows still show.
+    StackFileNotFoundError,
+)
 TOP = Path()  # the directory a root is browsed from
 
 # A directory's own files are read a page at a time: one can hold hundreds of
