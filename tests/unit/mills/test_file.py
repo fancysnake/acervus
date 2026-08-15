@@ -7,7 +7,12 @@ import pytest
 
 from acervus.mills.file import ScanService
 from acervus.pacts.file import FileDTO, FileRepositoryProtocol, ScanResult
-from acervus.pacts.filesystem import FileInfo, FilesystemReaderProtocol
+from acervus.pacts.filesystem import (
+    FileInfo,
+    FilesystemReaderProtocol,
+    RootLostError,
+    Traversal,
+)
 from acervus.pacts.root import (
     RootDTO,
     RootNotFoundError,
@@ -47,6 +52,10 @@ NOTES_RESIZED_WRITE = {
 }
 
 
+def walked(*files: FileInfo, unread: tuple[Path, ...] = ()) -> Traversal:
+    return Traversal(files=files, unread=unread)
+
+
 @pytest.fixture(name="files")
 def files_fixture():
     repository = Mock(spec=FileRepositoryProtocol)
@@ -65,7 +74,7 @@ def roots_fixture():
 def filesystem_fixture():
     reader = Mock(spec=FilesystemReaderProtocol)
     reader.exists.return_value = True
-    reader.walk.return_value = iter(())
+    reader.walk.return_value = walked()
     return reader
 
 
@@ -102,7 +111,7 @@ class TestScan:
 
     @staticmethod
     def test_it_scans_inside_one_transaction(*, service, filesystem, transaction):
-        filesystem.walk.return_value = iter((NOTES_ON_DISK,))
+        filesystem.walk.return_value = walked(NOTES_ON_DISK)
 
         service.scan(ALIAS)
 
@@ -156,10 +165,71 @@ class TestScanOfAnUnavailableRoot:
         filesystem.walk.assert_not_called()
 
 
+class TestScanOfARootLostMidWalk:
+    """A root that goes after it was found to be there still deletes nothing.
+
+    ``exists`` answering yes and the walk then failing is the window a root
+    being removed falls through, and the walk reading as empty there would
+    take every file indexed under the root with it.
+    """
+
+    @staticmethod
+    def test_a_root_lost_mid_walk_raises(*, service, filesystem):
+        filesystem.walk.side_effect = RootLostError(ALIAS)
+
+        with pytest.raises(RootUnavailableError):
+            service.scan(ALIAS)
+
+    @staticmethod
+    def test_it_keeps_every_indexed_file(*, service, files, filesystem):
+        files.list_by_root.return_value = [NOTES_INDEXED, INBOX_INDEXED]
+        filesystem.walk.side_effect = RootLostError(ALIAS)
+
+        with pytest.raises(RootUnavailableError):
+            service.scan(ALIAS)
+
+        files.delete_many.assert_not_called()
+        files.upsert_many.assert_not_called()
+
+
+class TestScanOfADirectoryThatCouldNotBeRead:
+    """Nothing below a directory the walk could not open counts as gone."""
+
+    @staticmethod
+    def test_it_keeps_a_file_under_an_unread_directory(*, service, files, filesystem):
+        files.list_by_root.return_value = [NOTES_INDEXED]
+        filesystem.walk.return_value = walked(unread=(NOTES.parent,))
+
+        result = service.scan(ALIAS)
+
+        files.delete_many.assert_not_called()
+        assert result.removed == 0
+
+    @staticmethod
+    def test_it_still_deletes_a_file_it_did_look_for(*, service, files, filesystem):
+        files.list_by_root.return_value = [NOTES_INDEXED, INBOX_INDEXED]
+        filesystem.walk.return_value = walked(unread=(NOTES.parent,))
+
+        result = service.scan(ALIAS)
+
+        files.delete_many.assert_called_once_with([INBOX_INDEXED.id])
+        assert result.removed == 1
+
+    @staticmethod
+    def test_an_unread_directory_holds_back_nothing_else(*, service, files, filesystem):
+        files.list_by_root.return_value = [NOTES_INDEXED]
+        filesystem.walk.return_value = walked(INBOX_ON_DISK, unread=(NOTES.parent,))
+
+        result = service.scan(ALIAS)
+
+        files.upsert_many.assert_called_once_with([INBOX_WRITE])
+        assert result.added == 1
+
+
 class TestScanAdds:
     @staticmethod
     def test_it_indexes_every_file_it_walks(*, service, files, filesystem):
-        filesystem.walk.return_value = iter((NOTES_ON_DISK, INBOX_ON_DISK))
+        filesystem.walk.return_value = walked(NOTES_ON_DISK, INBOX_ON_DISK)
 
         service.scan(ALIAS)
 
@@ -167,14 +237,14 @@ class TestScanAdds:
 
     @staticmethod
     def test_it_counts_a_file_the_index_lacks(*, service, filesystem):
-        filesystem.walk.return_value = iter((NOTES_ON_DISK, INBOX_ON_DISK))
+        filesystem.walk.return_value = walked(NOTES_ON_DISK, INBOX_ON_DISK)
 
         assert service.scan(ALIAS).added == 1 + 1  # both walked files are new
 
     @staticmethod
     def test_it_does_not_count_an_already_indexed_file(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED]
-        filesystem.walk.return_value = iter((NOTES_ON_DISK, INBOX_ON_DISK))
+        filesystem.walk.return_value = walked(NOTES_ON_DISK, INBOX_ON_DISK)
 
         assert service.scan(ALIAS).added == 1
 
@@ -204,7 +274,7 @@ class TestScanRemoves:
     @staticmethod
     def test_it_keeps_a_file_the_root_still_has(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED, INBOX_INDEXED]
-        filesystem.walk.return_value = iter((NOTES_ON_DISK,))
+        filesystem.walk.return_value = walked(NOTES_ON_DISK)
 
         result = service.scan(ALIAS)
 
@@ -216,7 +286,7 @@ class TestScanUpdates:
     @staticmethod
     def test_it_rewrites_a_file_whose_size_changed(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED]
-        filesystem.walk.return_value = iter((NOTES_RESIZED,))
+        filesystem.walk.return_value = walked(NOTES_RESIZED)
 
         result = service.scan(ALIAS)
 
@@ -226,21 +296,21 @@ class TestScanUpdates:
     @staticmethod
     def test_it_rewrites_a_file_whose_mtime_changed(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED]
-        filesystem.walk.return_value = iter((NOTES_TOUCHED,))
+        filesystem.walk.return_value = walked(NOTES_TOUCHED)
 
         assert service.scan(ALIAS).updated == 1
 
     @staticmethod
     def test_an_update_is_not_an_addition(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED]
-        filesystem.walk.return_value = iter((NOTES_RESIZED,))
+        filesystem.walk.return_value = walked(NOTES_RESIZED)
 
         assert service.scan(ALIAS).added == 0
 
     @staticmethod
     def test_it_leaves_an_unchanged_file_alone(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED]
-        filesystem.walk.return_value = iter((NOTES_ON_DISK,))
+        filesystem.walk.return_value = walked(NOTES_ON_DISK)
 
         result = service.scan(ALIAS)
 
@@ -256,7 +326,7 @@ class TestScanTogether:
             id=3, root_id=ROOT.id, relative_path=Path("gone.md"), size=SIZE, mtime=MTIME
         )
         files.list_by_root.return_value = [NOTES_INDEXED, gone]
-        filesystem.walk.return_value = iter((NOTES_RESIZED, INBOX_ON_DISK))
+        filesystem.walk.return_value = walked(NOTES_RESIZED, INBOX_ON_DISK)
 
         result = service.scan(ALIAS)
 
@@ -267,7 +337,7 @@ class TestScanTogether:
     @staticmethod
     def test_it_writes_the_new_and_the_changed_together(*, service, files, filesystem):
         files.list_by_root.return_value = [NOTES_INDEXED]
-        filesystem.walk.return_value = iter((NOTES_RESIZED, INBOX_ON_DISK))
+        filesystem.walk.return_value = walked(NOTES_RESIZED, INBOX_ON_DISK)
 
         service.scan(ALIAS)
 

@@ -3,15 +3,19 @@
 from typing import TYPE_CHECKING
 
 from acervus.pacts.file import FileWrite, ScanResult, ScanServiceProtocol
+from acervus.pacts.filesystem import RootLostError
 from acervus.pacts.root import RootUnavailableError
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from acervus.pacts.file import FileDTO, FileRepositoryProtocol
-    from acervus.pacts.filesystem import FileInfo, FilesystemReaderProtocol
+    from acervus.pacts.filesystem import FileInfo, FilesystemReaderProtocol, Traversal
     from acervus.pacts.root import RootRepositoryProtocol
     from acervus.pacts.transaction import TransactionProtocol
 
 UNAVAILABLE = "Root {alias!r} is not at {path}, so nothing was scanned."
+LOST = "Root {alias!r} stopped being readable at {path}, so nothing was changed."
 
 
 class ScanService(ScanServiceProtocol):
@@ -38,6 +42,11 @@ class ScanService(ScanServiceProtocol):
         longer has is deleted. A file both agree on is left untouched, so a
         rescan of a quiet root writes nothing at all.
 
+        Deleting is the one direction that loses work, since a file's marks and
+        its stack go with it and no rescan brings them back. So only a file the
+        walk actually looked for and did not find counts as gone: a directory
+        the walk could not open leaves everything indexed beneath it alone.
+
         An alias no root holds raises ``RootNotFoundError`` out of the
         repository, rolling the scan back before it writes anything.
 
@@ -45,10 +54,10 @@ class ScanService(ScanServiceProtocol):
             How many files the index gained, lost and rewrote.
 
         Raises:
-            RootUnavailableError: The root's directory is not there to read.
-                A root that has been unmounted reads as empty, so scanning it
-                would delete every file indexed under it along with the marks
-                and stack membership they carry.
+            RootUnavailableError: The root is not there to read, or stopped
+                being readable while it was being walked. Either way the walk
+                cannot say what the root holds, and reading that as an empty
+                root would delete every file indexed under it.
         """
         with self._transaction.atomic():
             root = self._roots.read_by_alias(alias)
@@ -58,11 +67,14 @@ class ScanService(ScanServiceProtocol):
             indexed = {
                 file.relative_path: file for file in self._files.list_by_root(root.id)
             }
-            found = {
-                info.relative_path: info for info in self._filesystem.walk(root.path)
-            }
+            traversal = self._look(alias, path=root.path)
+            found = {info.relative_path: info for info in traversal.files}
 
-            if gone := [file.id for path, file in indexed.items() if path not in found]:
+            if gone := [
+                file.id
+                for path, file in indexed.items()
+                if path not in found and not self._unread(path, traversal.unread)
+            ]:
                 self._files.delete_many(gone)
 
             added = 0
@@ -80,6 +92,33 @@ class ScanService(ScanServiceProtocol):
                 self._files.upsert_many(written)
 
             return ScanResult(added=added, removed=len(gone), updated=updated)
+
+    def _look(self, alias: str, *, path: Path) -> Traversal:
+        """Walk the root, saying so in the caller's terms if it goes.
+
+        Returns:
+            What the walk saw.
+
+        Raises:
+            RootUnavailableError: The root stopped being readable during the
+                walk, so what it holds is unknown rather than nothing.
+        """
+        try:
+            return self._filesystem.walk(path)
+        except RootLostError as error:
+            message = LOST.format(alias=alias, path=path)
+            raise RootUnavailableError(message) from error
+
+    @staticmethod
+    def _unread(path: Path, unread: tuple[Path, ...]) -> bool:
+        """Say whether this indexed path sits under a directory nothing read.
+
+        Returns:
+            Whether the walk never looked where this file is indexed, in which
+            case its absence from the walk says nothing about its absence from
+            the disk.
+        """
+        return any(path.is_relative_to(directory) for directory in unread)
 
     @staticmethod
     def _moved(indexed: FileDTO, found: FileInfo) -> bool:
