@@ -31,6 +31,14 @@ jobs:
           files: coverage.xml
           flags: python
           disable_search: true
+      - name: Upload client coverage to Codecov
+        uses: codecov/codecov-action@v7
+        if: success()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage-client/lcov.info
+          flags: client
+          disable_search: true
 
   quality:
     runs-on: ubuntu-latest
