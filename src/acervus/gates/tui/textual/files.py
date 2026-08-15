@@ -374,7 +374,15 @@ class FilesScreen(Screen[None]):
         self._report(
             self._outcome(files, done=done, refused=refused, one=one, many=many)
         )
-        self._show_carried()
+        # A mark or a stack is one of the things the listing is narrowed by, so
+        # changing one can move a file out of what is being shown. The rows are
+        # read again only when they are narrowed and something actually
+        # changed: an unnarrowed listing shows the same files either way, and
+        # rereading it would throw the cursor and the pages already read away.
+        if done and self._narrowed():
+            self._refresh()
+        else:
+            self._show_carried()
 
     @staticmethod
     def _outcome(
@@ -519,8 +527,15 @@ class FilesScreen(Screen[None]):
         """
         if self._scope.root_id is None:
             return NO_ROOTS_MESSAGE
-        narrowed = self._scope.mark_id is not None or self._scope.stack_id is not None
-        return NO_MATCHES_MESSAGE if narrowed else NO_FILES_MESSAGE
+        return NO_MATCHES_MESSAGE if self._narrowed() else NO_FILES_MESSAGE
+
+    def _narrowed(self) -> bool:
+        """Say whether a mark or a stack narrows what the rows show.
+
+        Returns:
+            Whether the listing shows less than the whole directory.
+        """
+        return self._scope.mark_id is not None or self._scope.stack_id is not None
 
     def _show_where(self) -> None:
         """Say which directory of which root is on the rows, and how narrowed."""

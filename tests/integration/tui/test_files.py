@@ -34,6 +34,11 @@ REMOVE_KEY = "x"
 SUBMIT_KEY = "enter"
 INVOICE = "invoice"
 MARK_FILTER_KEY = "k"
+STACK_KEY = "s"
+UNSTACK_KEY = "u"
+STACK_FILTER_KEY = "c"
+TRIP = "trip"
+NO_MATCHES_MESSAGE = "No files match this filter"
 UP_ARROW = "up"
 NO_ROOTS_MESSAGE = "No roots configured"
 NO_FILES_MESSAGE = "No files indexed"
@@ -320,6 +325,83 @@ class TestBrowsingDirectories:
             table = pilot.app.screen.query_one("#files", DataTable)
 
             assert table.get_row_at(1)[PICK_CELL] == UNPICKED
+
+
+class TestAChangeThatMovesAFileOutOfTheFilter:
+    """A narrowed listing is read again when what it narrows by changes.
+
+    The mark and the stack are two of the three things the listing is narrowed
+    by, so putting one on or taking one off can move a file out of what is
+    being shown. The rows would otherwise go on showing it until something
+    else happened to redraw them.
+    """
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_taking_the_filtered_mark_off_takes_the_row_off(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, ADD_KEY)
+            await type_name(pilot, INVOICE)
+            await pilot.press(MARK_FILTER_KEY)
+            assert pilot.app.screen.query_one("#files", DataTable).row_count == 1
+
+            await pilot.press(REMOVE_KEY)
+            await type_name(pilot, INVOICE)
+
+            assert pilot.app.screen.query_one("#files", DataTable).row_count == 0
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_the_emptied_listing_says_the_filter_matched_nothing(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, ADD_KEY)
+            await type_name(pilot, INVOICE)
+            await pilot.press(MARK_FILTER_KEY, REMOVE_KEY)
+            await type_name(pilot, INVOICE)
+            empty = pilot.app.screen.query_one("#no-files", Static)
+
+            assert empty.display
+            assert NO_MATCHES_MESSAGE in str(empty.render())
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_taking_a_file_out_of_the_filtered_stack_takes_the_row_off(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, STACK_KEY)
+            await type_name(pilot, TRIP)
+            await pilot.press(STACK_FILTER_KEY)
+            assert pilot.app.screen.query_one("#files", DataTable).row_count == 1
+
+            # The one operation that asks for no name, so it takes its own way.
+            await pilot.press(UNSTACK_KEY)
+
+            assert pilot.app.screen.query_one("#files", DataTable).row_count == 0
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_an_unnarrowed_listing_is_left_where_it_was(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, DOWN_KEY, STACK_KEY)
+            await type_name(pilot, TRIP)
+            await pilot.press(UNSTACK_KEY)
+            table = pilot.app.screen.query_one("#files", DataTable)
+
+            assert table.row_count == 1 + 1  # inbox.md and notes.md, both still shown
+            assert table.cursor_row == 1  # and the cursor did not go back to the top
+
+    @staticmethod
+    @pytest.mark.usefixtures("indexed")
+    async def test_a_refused_change_leaves_the_rows_alone(*, app):
+        async with app.run_test() as pilot:
+            await pilot.press(FILES_KEY, ADD_KEY)
+            await type_name(pilot, INVOICE)
+            await pilot.press(MARK_FILTER_KEY, DOWN_KEY)
+
+            # Nothing carries this one, so taking it off is refused outright.
+            await pilot.press(REMOVE_KEY)
+            await type_name(pilot, TRIP)
+
+            assert pilot.app.screen.query_one("#files", DataTable).row_count == 1
 
 
 class TestSelectingFiles:
