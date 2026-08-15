@@ -7,7 +7,7 @@ license = { text = "BSD-3-Clause license" }
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
 dependencies = [
-    "sqlalchemy (>=2.0.48,<3.0.0)",
+    "sqlalchemy[mypy] (>=2.0.48,<3.0.0)",
     "pydantic (>=2.12.5,<3.0.0)",
     "textual (>=8.2.8,<9.0.0)",
 ]
@@ -95,7 +95,7 @@ explicit_package_bases = true
 extra_checks = true
 implicit_reexport = true
 mypy_path = "src"
-plugins = ["pydantic.mypy"]
+plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
 pretty = true
 python_version = "3.14"
 strict = true
@@ -110,9 +110,8 @@ warn_unused_configs = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = ["acervus.gates.tui.textual.*", "acervus.inits.wiring", "acervus.links.db.*"]
+module = ["acervus.links.db.sqlalchemy.*"]
 disallow_any_expr = false
-disallow_any_decorated = false
 
 [tool.pydantic-mypy]
 init_forbid_extra = true

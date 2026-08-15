@@ -43,7 +43,7 @@ def main() -> None:
     """
     try:
         config = load_config()
-    except (tomllib.TOMLDecodeError, ValidationError) as error:
+    except (tomllib.TOMLDecodeError, ValidationError) as error:  # type: ignore [misc]
         sys.stderr.write(BAD_CONFIG_MESSAGE.format(error=error))
         sys.exit(1)
     if config is None:
