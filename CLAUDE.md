@@ -81,7 +81,7 @@ Ruff runs `select = ["ALL"]` in preview mode, ignoring only `CPY` and `D1`. Test
 
 ## Testing
 
-The layer under test dictates the test type. Both trees mirror `src/`, down to the adapter (`tests/integration/links/db/repositories/test_mark.py`); `tests/integration/` covers everything that touches IO. `asyncio_mode = "auto"`, so async tests need no marker.
+The layer under test dictates the test type. Both trees mirror `src/`, down to the adapter (`tests/integration/links/db/sqlalchemy/repositories/test_mark.py`); `tests/integration/` covers everything that touches IO. `asyncio_mode = "auto"`, so async tests need no marker.
 
 - Group tests in classes; test methods are `@staticmethod`, and take their fixtures **keyword-only** (`def test_x(*, roots, files)`). Pytest fills fixtures in by name, so keyword-only says what is happening and keeps the positional-argument limit meaningful without a `pylint: disable`.
 - An integration test of a screen proves the keystroke reaches the service and the screen redraws. What the service then does is settled in its `tests/unit/mills/` test — do not assert it again through a pilot.
