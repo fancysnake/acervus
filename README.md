@@ -5,6 +5,9 @@ Acervus organizes files across your disk with **marks** (labels) and **stacks**
 (named groups), keeping the index in a local SQLite database while your files
 stay exactly where they are.
 
+📖 **[User's manual — acervus.fancysnake.dev](https://acervus.fancysnake.dev/)**
+(source in [`docs/`](docs/))
+
 > **Status:** MVP complete. Acervus scans your configured roots, browses the
 > indexed files, and marks and stacks them from the TUI, with filtering on each.
 > [`FEATURE_PLAN.md`](FEATURE_PLAN.md) records how it was built.

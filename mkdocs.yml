@@ -1,0 +1,24 @@
+site_name: Acervus
+site_description: User's manual for Acervus, a filesystem tagging tool
+site_url: https://acervus.fancysnake.dev/
+repo_url: https://github.com/fancysnake/acervus
+edit_uri: edit/main/docs/
+docs_dir: docs
+strict: true
+theme:
+  name: readthedocs
+  highlightjs: true
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+nav:
+  - Acervus: index.md
+  - Getting started: getting-started.md
+  - Vocabulary: vocabulary.md
+  - Configuration: configuration.md
+  - Roots and scanning: roots-and-scanning.md
+  - Marks and stacks: marks-and-stacks.md
+  - The interface: interface.md
+  - Troubleshooting: troubleshooting.md

@@ -1,0 +1,35 @@
+name: Docs
+
+# Third-party actions are pinned to a commit, so a moving tag cannot change
+# what runs here. The trailing comment is the tag that commit was.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4
+      - run: mise exec -- poetry install
+      - run: mise run docs:build
+
+  # gh-deploy pushes the built site to the gh-pages branch, which Pages serves
+  # at the domain docs/CNAME names.
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # gh-deploy commits onto the existing gh-pages history
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4
+      - run: mise exec -- poetry install
+      - run: mise exec -- poetry run mkdocs gh-deploy --force

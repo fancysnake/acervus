@@ -22,6 +22,14 @@ includes = ["git::https://github.com/fancysnake/shared-configs.git//python.toml"
 [tasks.update]
 run = [{ task = "dep:upgrade:py" }]
 
+[tasks."docs:serve"]
+description = "Serve the manual at http://127.0.0.1:8000 with live reload"
+run = "poetry run mkdocs serve"
+
+[tasks."docs:build"]
+description = "Build the manual into site/, failing on a broken link"
+run = "poetry run mkdocs build --strict"
+
 [tasks.fullcheck]
 run = [
     "poetry install",
