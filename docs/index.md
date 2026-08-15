@@ -34,7 +34,9 @@ relative to the directory, their size, and when they last changed. From there
 you browse the index and put marks and stacks on what you find.
 
 Acervus reads your files' names and sizes. It never reads their contents, and
-never writes to them.
+never writes to them. If you would rather have that enforced than promised, the
+repository ships a sandbox profile that makes every root read-only at the kernel
+level — see [Running it sandboxed](sandboxing.md).
 
 ## Where to go next
 
@@ -47,6 +49,8 @@ never writes to them.
 - [Marks and stacks](marks-and-stacks.md) — naming rules, and when they are
   created and deleted.
 - [The interface](interface.md) — every screen and every key.
+- [Running it sandboxed](sandboxing.md) — the fence profile that makes the
+  read-only promise something the kernel enforces.
 - [Troubleshooting](troubleshooting.md) — the messages you may see, and what
   they mean.
 

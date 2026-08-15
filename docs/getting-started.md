@@ -43,6 +43,9 @@ Every field is explained in [Configuration](configuration.md).
 acre
 ```
 
+To run it with your roots made read-only by the kernel rather than by
+convention, see [Running it sandboxed](sandboxing.md).
+
 Acervus reads the config, brings the index into line with the roots it names,
 and opens on the roots screen:
 

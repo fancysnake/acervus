@@ -87,6 +87,20 @@ It should not — a scan runs off the interface thread. If a very large root mak
 the display sluggish, the scan is competing for the disk rather than blocking
 the interface; the count arrives when the walk finishes.
 
+## It fails only when run under fence
+
+The [sandbox profile](sandboxing.md) allows writes to `~/.local/share/acervus`
+and nowhere else. Two things go wrong with it:
+
+- **The directory does not exist yet.** fence skips a rule for a missing path,
+  so the directory Acervus tries to create is denied. Run
+  `mkdir -p ~/.local/share/acervus` first.
+- **`db_path` points somewhere else.** Change the path in the config and
+  `allowWrite` in `fence.acervus.jsonc` has to name the same directory.
+
+A scan that finds nothing under a root of credentials is the profile too: those
+paths are denied *reads*, deliberately.
+
 ## Starting over
 
 The index is one file, at your `db_path`. Delete it and Acervus rebuilds an
