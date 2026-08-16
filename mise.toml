@@ -2,11 +2,14 @@
 # Sequential execution to avoid race conditions in parallel tests
 jobs = 1
 
+[hooks]
+enter = "poetry install"
+
 [tools]
 "pipx:" = "1.16.7"
 "pipx:poetry" = { version = "2.4.1", pyproject = "{{ config_root }}/pyproject.toml" }
 pipx = "1.16.7"
-python = "3.14.6"
+python = "3.14.7"
 
 [env]
 # Mise creates and activates this virtualenv automatically
