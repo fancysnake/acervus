@@ -1,0 +1,41 @@
+/* The palette, built around #1F51FF. Material only names its own colours, so
+   a custom one is set through the variables the theme reads. */
+
+:root {
+  --acervus-blue: #1f51ff;
+  --acervus-blue-light: #5c7dff;
+  --acervus-blue-dark: #0b2fb8;
+  --acervus-blue-pale: #d5deff;
+}
+
+[data-md-color-primary="custom"] {
+  --md-primary-fg-color: var(--acervus-blue);
+  --md-primary-fg-color--light: var(--acervus-blue-light);
+  --md-primary-fg-color--dark: var(--acervus-blue-dark);
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: #ffffffb3;
+}
+
+[data-md-color-accent="custom"] {
+  --md-accent-fg-color: var(--acervus-blue-dark);
+  --md-accent-fg-color--transparent: #1f51ff1a;
+  --md-accent-bg-color: #ffffff;
+  --md-accent-bg-color--light: #ffffffb3;
+}
+
+[data-md-color-scheme="default"] {
+  --md-typeset-a-color: var(--acervus-blue);
+}
+
+/* On the dark background the base blue is too dense to read as body text, so
+   links and headings take the lighter step. */
+[data-md-color-scheme="slate"] {
+  --md-hue: 230;
+  --md-typeset-a-color: var(--acervus-blue-light);
+  --md-accent-fg-color: var(--acervus-blue-light);
+  --md-accent-fg-color--transparent: #5c7dff1f;
+}
+
+[data-md-color-scheme="slate"] [data-md-color-accent="custom"] {
+  --md-accent-fg-color: var(--acervus-blue-light);
+}
