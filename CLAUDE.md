@@ -1,306 +1,97 @@
-# Acervus
+# CLAUDE.md
 
-Filesystem tagging tool. Python 3.14, Poetry, mise.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+Acervus is a filesystem tagging tool (in the spirit of TMSU): it indexes files under named **roots** and organizes them with **marks** (labels, many-to-many) and **stacks** (a file belongs to at most one). Files stay where they are; the index lives in a local SQLite database.
+
+Naming: **acervus** = project, **acre** = the installed command, **mark** = label, **stack** = file group.
+
+Python 3.14, Poetry for dependencies, mise for tooling and tasks.
+
+## State of the repo
+
+The MVP is complete. The entry point is `acervus.inits.wiring:main` (`pyproject.toml`), which loads config, reconciles the configured roots against the index, and launches a **Textual TUI** (`acervus.gates.tui.textual.app.AcervusApp`). Click is not a dependency; `textual` is.
+
+Every layer but `edges` is populated. `pacts` holds the contracts for four nouns (`root`, `file`, `mark`, `stack`) alongside the `config`, `transaction` and `filesystem` ports. `specs` holds the mark and stack name invariants. `mills` holds four services — `RootService`, `ScanService`, `MarkService`, `StackService`. There is no file service: reading files carries no business rule, so the screens read through `FileRepositoryProtocol`, and adding one back is only worth it when a rule turns up to live in it. `links` holds the SQLAlchemy models, engine, repositories and transaction, plus the pathlib filesystem reader at `links/fs/pathlib/reader.py`. `gates` holds four TUI screens (roots, files, marks, stacks) and one modal name prompt. `inits` holds `load_config`, the `Repositories` / `Services` containers, and `IsolatedScan`, which gives a scan a session of its own so the roots screen can run it on a thread. The TUI receives services — no config and no container cross that boundary.
+
+Integrity is the database's: every foreign key declares `ondelete`, and `open_database` switches `foreign_keys` on (and `journal_mode=WAL`, so the interface reading does not block a scan writing). Deleting a root, a mark or a stack is one statement; nothing hand-rolls a cascade.
+
+`FEATURE_PLAN.md` records how it was built, step by step. Every step in it is done; it is history, not a to-do list.
 
 ## Commands
 
+Never run `python`, `pytest`, or `mypy` directly — mise owns the virtualenv.
+
 ```bash
-mise run start      # dev server :8000
-mise run test       # all tests
-mise run check      # format + lint
-mise run dj <cmd>   # django-admin
+mise run test:unit       # unit tests
+mise run test:int        # integration tests
+mise run test:py         # both
+mise run lint:ruff       # ruff, --no-fix
+mise run lint:mypy       # mypy src (strict)
+mise run lint:import-linter   # GLIMPSE layer contracts
+mise run lint:pylint src
+mise run lint:codespell
+mise run lint:py         # every linter at once, plus black --check, taplo and vulture
+mise run format:black    # black src tests
+mise run format:ruff     # ruff --fix
+mise run format:py       # both of the above, plus taplo
 ```
 
-## Architecture
+Pass extra arguments through with `--`, which is how you run a single test:
 
-GLIMPSE system:
-
-- `gates` (views, forms, templatetags, clis)
-- `links` (models, repos, external clients)
-- `inits` (DI)
-- `mills` (logic)
-- `pacts` (protocols, DTOs, aggregates)
-- `specs` (configuration options)
-- `edges` (infrastructure boundary)
-
-Access data: `request.di.uow.{repository}.read(id)` — returns Pydantic DTOs,
-never Django models.
-
-### Import rules
-
-Enforced by `importlinter` in `pyproject.toml`.
-
-Relation `X -> Y` means (Y can import X). Transitive and reflexive.
-
-`pacts` -> `specs` -> `mills` -> `links` -> `gates` -> `inits`
-
-| Layer | Cannot import |
-|-------|---------------|
-| pacts | gates, links, inits, mills, specs, edges, django |
-| specs | gates, links, inits, mills, edges, django |
-| mills | gates, links, inits, specs, edges, django |
-| links | gates, inits, specs, edges |
-| gates | links, inits, specs, edges |
-| inits | edges |
-| edges | gates, links, inits, mills, pacts, specs |
-
-Edges are outside of the import system — not imported by any layer.
-
-### Data flow
-
-1. Request arrives, middleware in `inits` injects `request.di = DependencyInjector()`
-2. View accesses `request.di.uow.{repo}.read(id)` — gets Pydantic DTO
-3. Repository: check identity-map cache -> query ORM if miss -> cache -> return DTO
-4. View passes DTOs to template
-
-### pacts
-
-Bottom layer. No imports from other project modules or Django.
-
-- **DTOs**: Pydantic `BaseModel` with `ConfigDict(from_attributes=True)`.
-  Fields mirror ORM model fields.
-- **TypedDicts** (`total=False`): used for write/update operations.
-- **Protocols**: interfaces for repositories, `UnitOfWorkProtocol`,
-  `DependencyInjectorProtocol`.
-- **Request types**: `RequestContext` / `AuthenticatedRequestContext` dataclasses,
-  `RootRequestProtocol` with `.di` and `.context`.
-- **Exceptions**: `NotFoundError` raised by repositories.
-
-### mills
-
-Pure business logic. Takes UoW/dependencies via constructor. No Django imports.
-
-```python
-class PanelService:
-    def __init__(self, uow: UnitOfWorkProtocol) -> None:
-        self._uow = uow
-
-    def delete_category(self, category_pk: int) -> bool:
-        if self._uow.categories.has_proposals(category_pk):
-            return False
-        self._uow.categories.delete(category_pk)
-        return True
+```bash
+mise run test:unit -- -k test_it_trims_surrounding_whitespace
 ```
 
-### links
+Every task comes from the shared config that `mise.toml` includes over git; `mise tasks ls --all` lists what is actually available. `lint:py` is the gate CI runs and it passes clean, so prefer it over invoking the linters one by one.
 
-Data access. Implements repository pattern with identity map.
+## Architecture: GLIMPSE layers
 
-**Storage** — request-scoped cache, simple `@dataclass` with dicts:
+Seven layers, with import direction enforced by import-linter contracts in `pyproject.toml` (`mise run lint:import-linter`). A change that violates the table fails the build.
 
-```python
-@dataclass
-class Storage:
-    events: dict[int, Event] = field(default_factory=dict)
-    users: dict[UserType, dict[str, User]] = field(
-        default_factory=lambda: defaultdict(dict)
-    )
-```
+| Layer     | CAN import                  | Holds                                             |
+|-----------|-----------------------------|---------------------------------------------------|
+| **pacts** | nothing                     | protocols, Pydantic DTOs, frozen dataclasses, exceptions — including `AcervusConfig` |
+| **specs** | pacts                       | pure business invariants — `specs/mark.py` holds the mark name rules |
+| **mills** | pacts, specs                | pure business logic; dependencies via constructor |
+| **links** | pacts                       | data access — SQLAlchemy models, engine, repositories |
+| **gates** | pacts                       | entry points — the Textual TUI                    |
+| **inits** | pacts, mills, links, gates, and specs only through mills | config loading, DI, the `main()` entry point |
+| **edges** | nothing                     | infrastructure boundary (currently empty)         |
 
-**Repositories** — implement protocols from pacts, take Storage in `__init__`:
+Three consequences carry the weight. **Only `inits` may wire `links` and `gates` together** — gates and mills cannot import `links` at all, so a TUI screen can never touch a SQLAlchemy model; it receives DTOs and services handed down from `inits`. **Neither `gates` nor `links` may import `mills`** — both are typed against protocols in `pacts` and receive concrete implementations by injection, so nothing at the edge names a concrete service. And **`specs` is for `mills` to call** — it holds pure business invariants, not configuration. `inits` is permitted to import it only because the contracts count indirect chains: wiring a service that validates through `specs` makes `inits → mills → specs` reachable, so forbidding it would forbid `specs` from being used at all. No module in `inits` may name a `specs` module directly, and the `inits-specs-only-through-mills` contract (`allow_indirect_imports`) fails the build if one does. `AcervusConfig` lives in `pacts` because it is a data contract crossing inits → gates. `edges` is outside the import graph; nothing may import it.
 
-```python
-class EventRepository(EventRepositoryProtocol):
-    def __init__(self, storage: Storage) -> None:
-        self._storage = storage
+Seven `inside-*` independence contracts sit on top of the seven layer contracts. The ones with teeth are `inside-pacts` and `inside-mills`: **sibling modules inside `pacts` and inside `mills` may not import each other**, so every noun module stands alone. A pacts module may be named after a port rather than a noun when its contract belongs to the port (`pacts/config.py`, `pacts/transaction.py`, `pacts/filesystem.py`).
 
-    def read(self, pk: int) -> EventDTO:
-        if not (event := self._storage.events.get(pk)):
-            try:
-                event = Event.objects.get(id=pk)
-            except Event.DoesNotExist as exception:
-                raise NotFoundError from exception
-            self._storage.events[pk] = event
-        return EventDTO.model_validate(event)
-```
+### Slicing
 
-**Unit of Work** — owns Storage, exposes repositories as `@cached_property`:
+`pacts`, `mills` and `specs` slice by **noun** (root, file, mark, stack), and `pacts` and `mills` must mirror each other. A pacts noun module holds every contract for that noun together — DTO, write TypedDict, repository protocol, errors. Do not create `pacts/dtos.py` or `pacts/protocols.py`; that slices by technical kind.
 
-```python
-class UnitOfWork(UnitOfWorkProtocol):
-    def __init__(self) -> None:
-        self._storage = Storage()
+`links` slices `{port}/{adapter}/{kind}` (`links/db/sqlalchemy/models.py`), `gates` slices `{port}/{adapter}/{page}` (`gates/tui/textual/app.py`). The `links/db/sqlalchemy/__init__.py` facade is the adapter's public surface and re-exports exactly what `inits` injects into services — the repositories and the transaction, each backed by a protocol in `pacts`. Models, the declarative base, the engine and the session stay internal. Every other `__init__.py` stays empty; import symbols from the module that defines them.
 
-    @staticmethod
-    def atomic() -> AbstractContextManager[None]:
-        return transaction.atomic()
+Repositories implement a protocol declared in `pacts`, declare it as a base class, and return Pydantic DTOs (`ConfigDict(from_attributes=True)`), never ORM models. Services take the specific repository protocols they use plus a `TransactionProtocol` by constructor — there is no Unit of Work.
 
-    @cached_property
-    def events(self) -> EventRepository:
-        return EventRepository(self._storage)
-```
+## Type checking
 
-### gates
+MyPy runs strict *plus* `disallow_any_expr` and `disallow_any_decorated`. Those two are relaxed per-module in `pyproject.toml` for `acervus.gates.tui.textual.*`, `acervus.inits.wiring`, and `acervus.links.db.*` — the packages where third-party code leaks `Any`. When you add a module that wraps Textual or SQLAlchemy, expect to either keep `Any` out of the signatures or extend that override list.
 
-Entry points. Receives DTOs from UoW, passes DTOs to templates.
-
-```python
-class EventIndexPageView(LoginRequiredMixin, TemplateView):
-    template_name = "panel/event/index.html"
-
-    def get(self, request: RootRequestProtocol, slug: str) -> TemplateResponse:
-        event = request.di.uow.events.read_by_slug(slug, request.context.current_sphere_id)
-        return TemplateResponse(request, self.template_name, {"event": event})
-```
-
-### inits
-
-Wires dependencies. Middleware sets `request.di`:
-
-```python
-class DependencyInjector(DependencyInjectorProtocol):
-    @cached_property
-    def uow(self) -> UnitOfWork:
-        return UnitOfWork()
-
-class RepositoryInjectionMiddleware:
-    def __call__(self, request: RootRequestProtocol) -> Response:
-        request.di = DependencyInjector()
-        return self.get_response(request)
-```
-
-### edges
-
-Django infrastructure only: `settings.py`, `wsgi.py`, `asgi.py`.
-
-## Source layout
-
-```
-src/{project}/
-  pacts.py
-  specs.py
-  mills.py
-  inits.py
-  links/
-    db/django/
-      models.py
-      admin.py
-      migrations/
-      storage.py
-      repositories.py
-      uow.py
-    {service}.py          # external API clients
-  gates/
-    web/django/
-      urls.py
-      forms.py
-      decorators.py
-      context_processors.py
-      templatetags/
-      {namespace}.py      # view modules
-    cli/django/
-      management/commands/
-  edges/
-    settings.py
-    wsgi.py
-    asgi.py
-  templates/
-  static/
-```
-
-## URL conventions
-
-### Pages (nouns, trailing slash)
-
-- **url:** `/{namespace}/({subnamespace}/)?{page}/{subpage}/`
-- **template:** `/{namespace}/({subnamespace}/)?{page}/{subpage}.html`
-- **view:** `({Subnamespace})?{Page}{Subpage}PageView`
-
-### Actions (verbs, `do` prefix, no trailing slash)
-
-- **url:** `/{namespace}/({subnamespace}/)?({page}/{subpage}/)?do/{action}/{subaction}`
-- **template:** none
-- **view:** `({Subnamespace})?({Page}{Subpage})?{Action}ActionView`
-
-### Components (nouns, `parts` prefix, no trailing slash)
-
-- **url:** `/{namespace}/({subnamespace}/)?({page}/{subpage}/)?parts/{part}`
-- **template:** `/{namespace}/({subnamespace}/)?({page}/{subpage}/)?parts/{part}.html`
-- **view:** `({Subnamespace})?({Page}{Subpage})?{Part}ComponentView`
-
-## Rules
-
-- Views return DTOs to templates, never models
-- Never touch `.env*` files
-- NEVER modify, create, or delete configuration files without explicit
-  per-case approval.
-- NEVER add noqa/type ignore/pylint comments or directives without explicit
-  per-case approval.
-- When making UI changes, use agent-browser to take screenshots of affected
-  pages and include before/after images in the PR description
+Ruff runs `select = ["ALL"]` in preview mode, ignoring only `CPY` and `D1`. Tests additionally waive `ANN` and `S`.
 
 ## Testing
 
-### Structure
+The layer under test dictates the test type. Both trees mirror `src/`, down to the adapter (`tests/integration/links/db/sqlalchemy/repositories/test_mark.py`); `tests/integration/` covers everything that touches IO. `asyncio_mode = "auto"`, so async tests need no marker.
 
-```
-tests/
-  unit/                              # mirrors src/ structure
-  integration/
-    web/{namespace}/test_{url_name}.py
-    cli/test_{command}.py
-  e2e/                               # Playwright
-  conftest.py
-  integration/conftest.py
-  integration/utils.py               # assert_response
-```
+- Group tests in classes; test methods are `@staticmethod`, and take their fixtures **keyword-only** (`def test_x(*, roots, files)`). Pytest fills fixtures in by name, so keyword-only says what is happening and keeps the positional-argument limit meaningful without a `pylint: disable`.
+- An integration test of a screen proves the keystroke reaches the service and the screen redraws. What the service then does is settled in its `tests/unit/mills/` test — do not assert it again through a pilot.
+- Unit tests cover `mills`, `pacts`, `specs` and pure functions — no filesystem, no database, no entry points. Mock at the highest level and assert every mock call.
+- Integration tests cover `links`, `gates` and the IO-bearing parts of `inits`, against real infrastructure: repositories against a real SQLite file, the TUI via Textual's `app.run_test()` pilot. Test repositories directly, not only through a screen.
+- Never raise coverage on an IO-bearing layer with a mock-everything unit test.
+- Spell out magic numbers with an arithmetic comment: `assert len(config.roots) == 1 + 1  # docs + photos`.
 
-### Unit tests (`tests/unit/`)
+## Conventions
 
-- Yes: classes, functions (mills, utilities)
-- No: views, commands, repositories
-- Write tests in classes
-- Mock at the highest level to avoid side effects
-- Check all mock calls
-- No database access
-
-Repositories are exempt from direct testing — implicitly tested through view
-integration tests.
-
-### Integration tests (`tests/integration/`)
-
-- Yes: views, commands
-- No: classes, functions
-- Use pytest-factoryboy fixtures
-- Mock at the lowest level or don't mock if possible
-- Check all mock calls and side effects
-
-Always use `assert_response`, never manual assertions:
-
-```python
-from http import HTTPStatus
-from tests.integration.utils import assert_response
-
-assert_response(
-    response,
-    HTTPStatus.OK,
-    template_name=["namespace/page.html"],
-    context_data={...},     # ALL keys, exact equality
-    messages=[(messages.SUCCESS, "Saved.")],  # optional
-)
-```
-
-- Use `ANY` only for hard-to-compare objects (forms, views), never for `[]`,
-  `{}`, booleans, or simple values
-- Login redirects: exact URL match (`url=f"/crowd/login-required/?next={url}"`)
-- Magic numbers: use `1 + 1` pattern with comment (`== 1 + 1  # Email + Phone`)
-
-### E2E tests (`tests/e2e/`)
-
-- Full features, complete user flows
-
-### TDD workflow
-
-Plan -> Tests (red) -> Implement (green) -> Refactor.
-Wait for approval between phases.
-
-## Tooling
-
-- **Black**: line-length 88, preview mode, Python 3.14 target
-- **Ruff**: `select = ["ALL"]`, preview mode
-- **MyPy**: strict mode, django-stubs plugin
-- **Import Linter**: enforces GLIMPSE layer import rules
-- **Djlint**: Django profile HTML linting
-- **Codespell**: spell checking
-- **Deptry**: dependency management
-- **Coverage**: omit `edges/` and `migrations/`, target 100% common code
+- A screen's `compose` yields the same widget tree every time and reads nothing; data is loaded in `on_mount` and an empty state is a `display` toggle, so `query_one` never depends on what came back.
+- Never add `noqa`, `type: ignore`, `pylint`, or `pragma` directives without explicit per-case approval.
+- Never modify, create, or delete configuration files without explicit per-case approval.

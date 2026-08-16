@@ -1,0 +1,121 @@
+# Getting started
+
+## Requirements
+
+- Python 3.14
+- [Poetry](https://python-poetry.org/) for dependencies
+- [mise](https://mise.jdx.dev/) for the toolchain
+
+## Install
+
+```bash
+mise install
+poetry install
+```
+
+That gives you the `acre` command.
+
+## Write a config
+
+Acervus does not run without one. It reads
+`~/.config/acervus/config.toml`, and there is a
+[`config.example.toml`](https://github.com/fancysnake/acervus/blob/main/config.example.toml)
+in the repository to copy:
+
+```toml
+[acervus]
+db_path = "~/.local/share/acervus/acervus.db"
+
+[acervus.roots]
+docs = "~/docs"
+photos = "~/photos"
+```
+
+`db_path` is where the index will live; its directory is created for you if it
+is not there. Under `[acervus.roots]` you name the directories to watch, one
+`alias = "path"` per line. A leading `~` means your home directory in both.
+
+Every field is explained in [Configuration](configuration.md).
+
+## Run it
+
+```bash
+acre
+```
+
+To run it with your roots made read-only by the kernel rather than by
+convention, see [Running it sandboxed](sandboxing.md).
+
+Acervus reads the config, brings the index into line with the roots it names,
+and opens on the roots screen:
+
+```text
+ Acervus
+┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
+┃ Alias   ┃ Path                ┃
+┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
+│ docs    │ /home/user/docs     │
+│ photos  │ /home/user/photos   │
+└─────────┴─────────────────────┘
+
+ s Scan   f Files   m Marks   t Stacks   q Quit
+```
+
+## Your first scan
+
+The index knows your roots but nothing under them yet. Put the cursor on a root
+with the arrow keys and press ++s++. Acervus walks the directory and reports
+what changed:
+
+```text
+docs: 1284 added, 0 removed, 0 updated.
+```
+
+Large trees take a while; the interface stays responsive while the scan runs.
+Scan the other roots the same way.
+
+## Mark something
+
+Press ++f++ for the files screen. It opens at the top of your first root and
+browses one directory at a time: the subdirectories first, with how many files
+each holds, then the files sitting in the directory itself. ++enter++ opens the
+directory under the cursor, ++backspace++ goes back up, and ++r++ moves to the
+next root. Under the table, two lines show what the file under the cursor
+carries and which stack it sits in.
+
+Walk down to a file and press ++a++. A prompt asks for a mark name; type
+`invoice`
+and press ++enter++. The status line confirms it, and the marks line for that
+file now reads `Marks: invoice`. The mark did not exist a moment ago — putting
+it on a file is what created it.
+
+Press ++x++ to take a mark off again, naming it the same way. Press ++s++ to
+put the file in a stack, and ++u++ to take it back out.
+
+To do any of that to several files at once, press ++space++ on each of them
+first — a `•` appears in front of every file selected — and then ++a++, ++x++,
+++s++ or ++u++ as before.
+
+## Find it again
+
+Still on the files screen, press ++k++ to step the mark filter forward. It
+cycles through *any mark*, then each mark in turn, then *unmarked*, and back
+around. The line above the table always says where you are and what you are
+looking at:
+
+```text
+Showing: docs > receipts, invoice, any stack
+```
+
+++c++ does the same for stacks, and the two combine. They narrow the directory
+rows too: a directory holding nothing that matches drops out of the listing, so
+filtering by *unmarked* walks you straight to the part of the tree you have not
+organized yet.
+
+## Where next
+
+- [The interface](interface.md) for every screen and key.
+- [Marks and stacks](marks-and-stacks.md) for the naming rules and what happens
+  to a mark nothing carries.
+- [Roots and scanning](roots-and-scanning.md) before you change a root in the
+  config — dropping one drops its files from the index.

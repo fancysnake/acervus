@@ -1,0 +1,59 @@
+site_name: Acervus
+site_description: User's manual for Acervus, a filesystem tagging tool
+site_url: https://acervus.fancysnake.dev/
+repo_url: https://github.com/fancysnake/acervus
+edit_uri: edit/main/docs/
+docs_dir: docs
+strict: true
+theme:
+  name: material
+  icon:
+    logo: material/tag-multiple
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.top
+    - navigation.tracking
+    - content.action.edit
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+extra_css:
+  - stylesheets/extra.css
+plugins:
+  - search
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - pymdownx.details
+  - pymdownx.keys
+  - pymdownx.superfences
+  - toc:
+      permalink: true
+nav:
+  - Acervus: index.md
+  - Getting started: getting-started.md
+  - Vocabulary: vocabulary.md
+  - Configuration: configuration.md
+  - Roots and scanning: roots-and-scanning.md
+  - Marks and stacks: marks-and-stacks.md
+  - The interface: interface.md
+  - Running it sandboxed: sandboxing.md
+  - Troubleshooting: troubleshooting.md

@@ -3,10 +3,10 @@
 jobs = 1
 
 [tools]
-python = "3.14"
-pipx = "1.16.7"
 "pipx:" = "1.16.7"
-"pipx:poetry" = { version = "2.4.1", pyproject = "/home/radek/acervus/pyproject.toml" }
+"pipx:poetry" = { version = "2.4.1", pyproject = "{{ config_root }}/pyproject.toml" }
+pipx = "1.16.7"
+python = "3.14.6"
 
 [env]
 # Mise creates and activates this virtualenv automatically
@@ -22,6 +22,14 @@ includes = ["git::https://github.com/fancysnake/shared-configs.git//python.toml"
 
 [tasks.update]
 run = [{ task = "dep:upgrade:py" }]
+
+[tasks."docs:serve"]
+description = "Serve the manual at http://127.0.0.1:8000 with live reload"
+run = "poetry run mkdocs serve"
+
+[tasks."docs:build"]
+description = "Build the manual into site/, failing on a broken link"
+run = "poetry run mkdocs build --strict"
 
 [tasks.fullcheck]
 run = [

@@ -1,0 +1,59 @@
+// Sandbox profile for running Acervus itself (not for running the toolchain).
+//
+//   mkdir -p ~/.local/share/acervus/tmp
+//   TMPDIR=~/.local/share/acervus/tmp \
+//     fence --settings fence.acervus.jsonc -- mise run p run acre
+//
+// Acervus indexes files where they lie: it reads roots and writes nothing but
+// its own SQLite database. This profile pins that promise down with Landlock,
+// so a bug in a scan or a mark cannot touch an indexed file.
+//
+// Deliberately NOT named fence.jsonc: fence auto-discovers that name from the
+// cwd upwards, so a repo-root fence.jsonc would also govern `fence claude` and
+// every other fence run started here. Pass this file with --settings instead.
+{
+  // The TUI is Textual — it needs a real terminal.
+  "allowPty": true,
+
+  "network": {
+    // Acervus is offline by heart: no domains allowed, no listening sockets.
+    // Fence denies all network by default; this states it rather than implies it.
+    "allowedDomains": [],
+    "allowLocalBinding": false,
+    "allowLocalOutbound": false
+  },
+
+  "filesystem": {
+    // Reads stay open — the whole point is to walk roots wherever they live.
+    // Credentials are the exception: an indexer has no business reading them.
+    // Drop an entry here if you ever index a root that contains one.
+    //
+    // The ssh, gnupg, aws and gcloud entries deny the whole directory rather
+    // than the key filenames convention suggests: a key named work_key is
+    // still a key, and nothing sitting beside one is worth indexing either.
+    "denyRead": [
+      "~/.ssh/**",
+      "~/.gnupg/**",
+      "~/.aws/**",
+      "~/.config/gcloud/**",
+      "~/.netrc",
+      "~/.git-credentials",
+      "~/.pypirc"
+    ],
+
+    // Everything not listed here is read-only, and the one writable tree is
+    // Acervus's own. Shared /tmp stays out of it: SQLite spills temp files for
+    // sorts, VACUUM and large statements, so TMPDIR points those at a
+    // subdirectory of this tree instead of widening the profile to reach them.
+    //
+    // Both directories must already exist — hence the mkdir above: fence skips
+    // rules for missing paths, and Repositories.session calls
+    // db_path.parent.mkdir(), which would then be denied.
+    //
+    // Point db_path somewhere else in ~/.config/acervus/config.toml and this
+    // list has to follow it.
+    "allowWrite": ["~/.local/share/acervus", "~/.local/share/acervus/**"],
+
+    "denyWrite": []
+  }
+}
