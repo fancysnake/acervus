@@ -854,7 +854,7 @@ string, a root path of the wrong type.</p>
 <p>The <code>[acervus.roots]</code> table is empty or absent. Add <code>alias = "path"</code> entries and
 restart.</p>
 <h2 id="a-scan-reports-nothing-was-scanned">A scan reports nothing was scanned<a class="headerlink" href="#a-scan-reports-nothing-was-scanned" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>Root &#39;photos&#39; is not at /mnt/media/photos, so nothing was scanned.
+<div class="highlight"><pre><span></span><code>Root 'photos' is not at /mnt/media/photos, so nothing was scanned.
 </code></pre></div>
 <p>The directory is not there — unmounted, renamed, or the path in the config is
 wrong. Acervus refuses rather than reading it as empty and deleting every file
@@ -894,7 +894,7 @@ whose files all fail the filter is not listed while it is on.</p>
 <p><code>No roots configured.</code> means the config names no roots at all. See
 <a href="../configuration/">Configuration</a>.</p>
 <h2 id="a-name-is-rejected">A name is rejected<a class="headerlink" href="#a-name-is-rejected" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>A mark name cannot contain whitespace: &#39;tax return&#39;.
+<div class="highlight"><pre><span></span><code>A mark name cannot contain whitespace: 'tax return'.
 </code></pre></div>
 <p>Mark names take no whitespace, no <code>:</code> and no <code>,</code>, and cap at 64 characters.
 Stack names allow spaces and cap at 255. Both must be non-empty. See

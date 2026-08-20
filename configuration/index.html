@@ -692,12 +692,12 @@ command-line option and no environment variable; if the file is not there,
 <code>acre</code> says so and exits.</p>
 <p>Everything lives under an <code>[acervus]</code> table:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[acervus]</span>
-<span class="n">db_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;~/.local/share/acervus/acervus.db&quot;</span>
-<span class="n">ignore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;.git&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;.venv&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;node_modules&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;__pycache__&quot;</span><span class="p">]</span>
+<span class="n">db_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"~/.local/share/acervus/acervus.db"</span>
+<span class="n">ignore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">".git"</span><span class="p">,</span><span class="w"> </span><span class="s2">".venv"</span><span class="p">,</span><span class="w"> </span><span class="s2">"node_modules"</span><span class="p">,</span><span class="w"> </span><span class="s2">"__pycache__"</span><span class="p">]</span>
 
 <span class="k">[acervus.roots]</span>
-<span class="n">docs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;~/docs&quot;</span>
-<span class="n">photos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/mnt/media/photos&quot;</span>
+<span class="n">docs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"~/docs"</span>
+<span class="n">photos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/mnt/media/photos"</span>
 </code></pre></div>
 <h2 id="db_path"><code>db_path</code><a class="headerlink" href="#db_path" title="Permanent link">&para;</a></h2>
 <p><strong>Required.</strong> The SQLite file the index lives in. A leading <code>~</code> expands to your
@@ -711,8 +711,8 @@ every mark and stack you have made — and nothing else.</p>
 a short name of your choosing, unique across the table; the path is the
 directory, with <code>~</code> expanded as above.</p>
 <div class="highlight"><pre><span></span><code><span class="k">[acervus.roots]</span>
-<span class="n">docs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;~/docs&quot;</span>
-<span class="n">photos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/mnt/media/photos&quot;</span>
+<span class="n">docs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"~/docs"</span>
+<span class="n">photos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/mnt/media/photos"</span>
 </code></pre></div>
 <p>The table may be empty, in which case there is nothing to scan.</p>
 <div class="admonition warning">
@@ -727,7 +727,7 @@ the next scan reconciles them against the new directory.</p>
 </div>
 <h2 id="ignore"><code>ignore</code><a class="headerlink" href="#ignore" title="Permanent link">&para;</a></h2>
 <p><strong>Optional.</strong> Glob patterns a scan will not walk into or record. The default is:</p>
-<div class="highlight"><pre><span></span><code><span class="n">ignore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;.git&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;.venv&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;node_modules&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;__pycache__&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><span class="n">ignore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">".git"</span><span class="p">,</span><span class="w"> </span><span class="s2">".venv"</span><span class="p">,</span><span class="w"> </span><span class="s2">"node_modules"</span><span class="p">,</span><span class="w"> </span><span class="s2">"__pycache__"</span><span class="p">]</span>
 </code></pre></div>
 <p>Each pattern is matched against <strong>one path component at a time</strong>, not against
 the whole path. So <code>.venv</code> skips a directory of that name at any depth, <code>*.pyc</code>
@@ -737,7 +737,7 @@ single component ever contains a slash.</p>
 <code>node_modules</code> costs nothing to walk.</p>
 <p>Writing the key <strong>replaces</strong> the default list rather than adding to it. To keep
 the defaults and add your own, write them out in full:</p>
-<div class="highlight"><pre><span></span><code><span class="n">ignore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;.git&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;.venv&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;node_modules&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;__pycache__&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;*.tmp&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;.cache&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><span class="n">ignore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">".git"</span><span class="p">,</span><span class="w"> </span><span class="s2">".venv"</span><span class="p">,</span><span class="w"> </span><span class="s2">"node_modules"</span><span class="p">,</span><span class="w"> </span><span class="s2">"__pycache__"</span><span class="p">,</span><span class="w"> </span><span class="s2">"*.tmp"</span><span class="p">,</span><span class="w"> </span><span class="s2">".cache"</span><span class="p">]</span>
 </code></pre></div>
 <p>To index everything, including the defaults:</p>
 <div class="highlight"><pre><span></span><code><span class="n">ignore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[]</span>
