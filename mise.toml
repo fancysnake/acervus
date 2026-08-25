@@ -23,7 +23,10 @@ TOML_PATHS = ".taplo.toml pyproject.toml mise.toml tingle.toml"
 includes = ["git::https://github.com/fancysnake/shared-configs.git//python.toml"]
 
 [tasks.update]
-run = [{ task = "dep:upgrade:py" }]
+run = [
+    "mise upgrade --bump --exclude python --minimum-release-age=7d",
+    { task = "dep:upgrade:py" },
+]
 
 [tasks."docs:serve"]
 description = "Serve the manual at http://127.0.0.1:8000 with live reload"
