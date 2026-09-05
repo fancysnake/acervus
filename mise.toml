@@ -6,7 +6,7 @@ jobs = 1
 enter = "poetry install"
 
 [tools]
-"pipx:poetry" = { version = "2.4.1", pyproject = "{{ config_root }}/pyproject.toml" }
+"pipx:poetry" = { version = "2.4.3", pyproject = "{{ config_root }}/pyproject.toml" }
 pipx = "1.16.7"
 python = "3.14.7"
 
