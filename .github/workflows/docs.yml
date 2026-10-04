@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5
+      - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
       - run: mise exec -- poetry install
       - run: mise run docs:build
 
@@ -30,6 +30,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0 # gh-deploy commits onto the existing gh-pages history
-      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5
+      - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
       - run: mise exec -- poetry install
       - run: mise exec -- poetry run mkdocs gh-deploy --force
