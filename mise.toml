@@ -7,7 +7,7 @@ enter = "poetry install"
 
 [tools]
 "pipx:poetry" = { version = "2.5.1", pyproject = "/home/radek/acervus/pyproject.toml" }
-pipx = "1.17.6"
+pipx = "1.17.11"
 python = "3.14.7"
 
 [env]
