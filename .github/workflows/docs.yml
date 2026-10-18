@@ -15,6 +15,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
+      - run: mise settings experimental=true
       - run: mise exec -- poetry install
       - run: mise run docs:build
 
@@ -31,5 +32,6 @@ jobs:
         with:
           fetch-depth: 0 # gh-deploy commits onto the existing gh-pages history
       - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
+      - run: mise settings experimental=true
       - run: mise exec -- poetry install
       - run: mise exec -- poetry run mkdocs gh-deploy --force
