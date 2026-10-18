@@ -21,6 +21,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
+      - run: mise settings experimental=true
       - run: mise exec -- poetry install
       - run: mise run test:py:cov
       - name: Upload Python coverage to Codecov
@@ -47,6 +48,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
+      - run: mise settings experimental=true
       - run: mise exec -- poetry install
       - run: mise run lint:py
 
@@ -60,5 +62,6 @@ jobs:
           fetch-depth: 0 # tingle check needs history to find the merge-base
           persist-credentials: false
       - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
+      - run: mise settings experimental=true
       - run: mise exec -- poetry install
       - run: mise exec -- poetry run tingle check
