@@ -9,6 +9,11 @@ INVOICE = "invoice"
 MIXED_CASE = "Invoice"
 PUNCTUATED = "tax-2026_q1"
 TWO_WORDS = "two words"
+BOTH_RESERVED = "a:b,c"
+
+BLANK = "A mark name cannot be blank."
+OVERLONG = "A mark name cannot exceed 64 characters."
+RESERVED = "A mark name cannot contain ',:': 'a:b,c'."
 
 
 class TestCleanMarkName:
@@ -37,13 +42,17 @@ class TestCleanMarkName:
     @staticmethod
     @pytest.mark.parametrize("name", ("", "   ", "\t\n"))
     def test_a_blank_name_raises(*, name) -> None:
-        with pytest.raises(InvalidMarkNameError):
+        with pytest.raises(InvalidMarkNameError) as caught:
             clean_mark_name(name)
+
+        assert str(caught.value) == BLANK
 
     @staticmethod
     def test_an_overlong_name_raises() -> None:
-        with pytest.raises(InvalidMarkNameError):
+        with pytest.raises(InvalidMarkNameError) as caught:
             clean_mark_name("m" * (MAX_NAME_LENGTH + 1))
+
+        assert str(caught.value) == OVERLONG
 
     @staticmethod
     @pytest.mark.parametrize("name", (TWO_WORDS, "tab\there", "line\nbreak"))
@@ -56,6 +65,13 @@ class TestCleanMarkName:
     def test_a_reserved_character_raises(*, name) -> None:
         with pytest.raises(InvalidMarkNameError):
             clean_mark_name(name)
+
+    @staticmethod
+    def test_the_message_lists_every_reserved_character_found() -> None:
+        with pytest.raises(InvalidMarkNameError) as caught:
+            clean_mark_name(BOTH_RESERVED)
+
+        assert str(caught.value) == RESERVED
 
     @staticmethod
     def test_the_message_names_the_offender() -> None:

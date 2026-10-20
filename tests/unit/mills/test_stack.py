@@ -141,6 +141,7 @@ class TestAddMoves:
 
         service.add(FILE_ID, name=TRIP)
 
+        stacks.read_for_file.assert_called_once_with(FILE_ID)
         # One write: pointing the file at its new stack is what takes it out
         # of the old one.
         stacks.set_for_file.assert_called_once_with(FILE_ID, stack_id=TRIP_STACK.id)

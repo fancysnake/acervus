@@ -30,6 +30,9 @@ GROWN_SIZE = 99
 MTIME = 1.5
 LATER_MTIME = 2.5
 
+UNAVAILABLE = "Root 'docs' is not at /home/user/docs, so nothing was scanned."
+LOST = "Root 'docs' stopped being readable at /home/user/docs, so nothing was changed."
+
 NOTES_ON_DISK = FileInfo(relative_path=NOTES, size=SIZE, mtime=MTIME)
 INBOX_ON_DISK = FileInfo(relative_path=INBOX, size=SIZE, mtime=MTIME)
 NOTES_RESIZED = FileInfo(relative_path=NOTES, size=GROWN_SIZE, mtime=MTIME)
@@ -141,8 +144,10 @@ class TestScanOfAnUnavailableRoot:
     def test_a_root_that_is_not_there_raises(*, service, filesystem):
         filesystem.exists.return_value = False
 
-        with pytest.raises(RootUnavailableError):
+        with pytest.raises(RootUnavailableError) as caught:
             service.scan(ALIAS)
+
+        assert str(caught.value) == UNAVAILABLE
 
     @staticmethod
     def test_it_keeps_every_indexed_file(*, service, files, filesystem):
@@ -177,8 +182,10 @@ class TestScanOfARootLostMidWalk:
     def test_a_root_lost_mid_walk_raises(*, service, filesystem):
         filesystem.walk.side_effect = RootLostError(ALIAS)
 
-        with pytest.raises(RootUnavailableError):
+        with pytest.raises(RootUnavailableError) as caught:
             service.scan(ALIAS)
+
+        assert str(caught.value) == LOST
 
     @staticmethod
     def test_it_keeps_every_indexed_file(*, service, files, filesystem):
@@ -299,6 +306,14 @@ class TestScanUpdates:
         filesystem.walk.return_value = walked(NOTES_TOUCHED)
 
         assert service.scan(ALIAS).updated == 1
+
+    @staticmethod
+    def test_it_counts_every_rewritten_file(*, service, files, filesystem):
+        inbox_touched = FileInfo(relative_path=INBOX, size=SIZE, mtime=LATER_MTIME)
+        files.list_by_root.return_value = [NOTES_INDEXED, INBOX_INDEXED]
+        filesystem.walk.return_value = walked(NOTES_RESIZED, inbox_touched)
+
+        assert service.scan(ALIAS).updated == 1 + 1  # notes grew, inbox touched
 
     @staticmethod
     def test_an_update_is_not_an_addition(*, service, files, filesystem):

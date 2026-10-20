@@ -29,6 +29,7 @@ dev = [
     "import-linter (>=2.11,<3.0)",
     "mkdocs (>=1.6,<2.0)",
     "mkdocs-material (>=9.6,<10.0)",
+    "mutmut (>=3.8.0,<4.0.0)",
     "mypy (>=2.3.0,<3.0.0)",
     "pip-audit (>=2.10.1,<3.0.0)",
     "pylint (>=4.0.5,<5.0.0)",
@@ -52,6 +53,27 @@ target-version = ['py314']
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+# MUTMUT
+
+[tool.mutmut]
+# NOTE: two layers only. `mills` is the one the unit suite owns, and `specs` is
+# the pure invariants those same tests reach through it. A mutant in any other
+# layer survives whatever only the integration suite could have killed, so
+# mutating `src` wholesale reports noise instead of gaps.
+source_paths = ["src/acervus/mills", "src/acervus/specs"]
+pytest_add_cli_args_test_selection = ["tests/unit"]
+# NOTE: mutmut runs the suite from a copy of the tree, so everything the unit
+# suite imports has to be copied beside the mutants. Out: the mutated packages
+# themselves. A new top-level package under `src/acervus` belongs in this list.
+also_copy = [
+    "src/acervus/__init__.py",
+    "src/acervus/edges",
+    "src/acervus/gates",
+    "src/acervus/inits",
+    "src/acervus/links",
+    "src/acervus/pacts",
+]
 
 # COVERAGE
 
