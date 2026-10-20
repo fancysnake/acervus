@@ -13,12 +13,12 @@ coverage = "mise run test:py:cov:diff"
 fast_coverage = "mise run test:py:cov:diff"
 sign_commits = true
 
-# The job names in .github/workflows/ci.yml, plus what Codecov posts. tingle
-# is advisory and left out.
-[cabinet.ci.jobs.quality]
-[cabinet.ci.jobs.tests]
-[cabinet.ci.jobs."codecov/patch"]
-covering = true
+# Prefixes of the job names in .github/workflows/ci.yml, plus what Codecov
+# posts. tingle is advisory and left out.
+[cabinet.ci]
+gate_checks = ["quality", "tests"]
+cover_checks = ["codecov/", "tests"]
+patch_check = "codecov/patch"
 
 [cabinet.agent]
 model = "opus"
