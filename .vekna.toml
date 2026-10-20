@@ -1,0 +1,28 @@
+[rituals]
+modules = ["cabinet.rituals"]
+
+[cabinet]
+forge = "github"
+base = "main"
+# The https twin of `origin`, with `gh` as the credential helper: a cast
+# refuses an ssh remote before its first fetch.
+remote = "https-origin"
+gate = "mise run fullcheck"
+# One suite, seconds long: the full measurement and the fast one are the same.
+coverage = "mise run test:py:cov:diff"
+fast_coverage = "mise run test:py:cov:diff"
+sign_commits = true
+
+# The job names in .github/workflows/ci.yml, plus what Codecov posts. tingle
+# is advisory and left out.
+[cabinet.ci.jobs.quality]
+[cabinet.ci.jobs.tests]
+[cabinet.ci.jobs."codecov/patch"]
+covering = true
+
+[cabinet.agent]
+model = "opus"
+effort = "high"
+max_turns = 0
+# The whole-repository linter sweep, which the gate runs anyway.
+may_not_run = ["mise run lint:py"]
