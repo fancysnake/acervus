@@ -61,19 +61,9 @@ asyncio_mode = "auto"
 # the pure invariants those same tests reach through it. A mutant in any other
 # layer survives whatever only the integration suite could have killed, so
 # mutating `src` wholesale reports noise instead of gaps.
-source_paths = ["src/acervus/mills", "src/acervus/specs"]
+source_paths = ["src"]
+only_mutate = ["src/acervus/mills/*", "src/acervus/specs/*"]
 pytest_add_cli_args_test_selection = ["tests/unit"]
-# NOTE: mutmut runs the suite from a copy of the tree, so everything the unit
-# suite imports has to be copied beside the mutants. Out: the mutated packages
-# themselves. A new top-level package under `src/acervus` belongs in this list.
-also_copy = [
-    "src/acervus/__init__.py",
-    "src/acervus/edges",
-    "src/acervus/gates",
-    "src/acervus/inits",
-    "src/acervus/links",
-    "src/acervus/pacts",
-]
 
 # COVERAGE
 

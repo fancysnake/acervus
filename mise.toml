@@ -37,17 +37,18 @@ description = "Build the manual into site/, failing on a broken link"
 run = "poetry run mkdocs build --strict"
 
 [tasks."test:mutation"]
-description = "Run mutation tests; fails on any surviving or untested mutant"
+description = "Run mutation tests; fails unless every mutant is killed or timed out"
 # NOTE: mutmut reuses mutants/ between runs: its stats only re-collect for new
 # tests, so a function added since the last run maps to no test, and the
 # "no tests" verdict that writes into the .meta files is never reset by a later
-# run. Starting from an empty mutants/ makes every run a full one, as in CI;
-# "no tests" is gated like a survivor so a stale verdict cannot pass either.
+# run. Starting from an empty mutants/ makes every run a full one, as in CI.
+# The gate is an allow-list: any verdict but killed or timeout fails it.
 run = [
     "rm -rf mutants",
     "mutmut run",
     "mutmut results",
-    "! mutmut results | grep -E ': (survived|no tests)$'",
+    "mutmut export-cicd-stats",
+    "jq -e '.total > 0 and .killed + .timeout == .total' mutants/mutmut-cicd-stats.json",
 ]
 
 [tasks.fullcheck]

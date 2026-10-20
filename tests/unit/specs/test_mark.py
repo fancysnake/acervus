@@ -12,7 +12,7 @@ TWO_WORDS = "two words"
 BOTH_RESERVED = "a:b,c"
 
 BLANK = "A mark name cannot be blank."
-OVERLONG = "A mark name cannot exceed 64 characters."
+OVERLONG = f"A mark name cannot exceed {MAX_NAME_LENGTH} characters."
 RESERVED = "A mark name cannot contain ',:': 'a:b,c'."
 
 

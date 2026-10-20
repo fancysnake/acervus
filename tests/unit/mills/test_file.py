@@ -30,8 +30,8 @@ GROWN_SIZE = 99
 MTIME = 1.5
 LATER_MTIME = 2.5
 
-UNAVAILABLE = "Root 'docs' is not at /home/user/docs, so nothing was scanned."
-LOST = "Root 'docs' stopped being readable at /home/user/docs, so nothing was changed."
+UNAVAILABLE = f"Root {ALIAS!r} is not at {ROOT.path}, so nothing was scanned."
+LOST = f"Root {ALIAS!r} stopped being readable at {ROOT.path}, so nothing was changed."
 
 NOTES_ON_DISK = FileInfo(relative_path=NOTES, size=SIZE, mtime=MTIME)
 INBOX_ON_DISK = FileInfo(relative_path=INBOX, size=SIZE, mtime=MTIME)
@@ -312,8 +312,19 @@ class TestScanUpdates:
         inbox_touched = FileInfo(relative_path=INBOX, size=SIZE, mtime=LATER_MTIME)
         files.list_by_root.return_value = [NOTES_INDEXED, INBOX_INDEXED]
         filesystem.walk.return_value = walked(NOTES_RESIZED, inbox_touched)
+        inbox_touched_write = {
+            "root_id": ROOT.id,
+            "relative_path": inbox_touched.relative_path,
+            "size": inbox_touched.size,
+            "mtime": inbox_touched.mtime,
+        }
 
-        assert service.scan(ALIAS).updated == 1 + 1  # notes grew, inbox touched
+        result = service.scan(ALIAS)
+
+        files.upsert_many.assert_called_once_with(
+            [NOTES_RESIZED_WRITE, inbox_touched_write]
+        )
+        assert result.updated == 1 + 1  # notes grew, inbox touched
 
     @staticmethod
     def test_an_update_is_not_an_addition(*, service, files, filesystem):

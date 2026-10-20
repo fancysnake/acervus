@@ -10,7 +10,7 @@ MIXED_CASE = "Iceland Trip"
 SPACE = " "
 
 BLANK = "A stack name cannot be blank."
-OVERLONG = "A stack name cannot exceed 255 characters."
+OVERLONG = f"A stack name cannot exceed {MAX_NAME_LENGTH} characters."
 
 
 class TestCleanStackName:
