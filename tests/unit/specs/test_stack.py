@@ -9,6 +9,9 @@ TRIP = "iceland trip"
 MIXED_CASE = "Iceland Trip"
 SPACE = " "
 
+BLANK = "A stack name cannot be blank."
+OVERLONG = f"A stack name cannot exceed {MAX_NAME_LENGTH} characters."
+
 
 class TestCleanStackName:
     @staticmethod
@@ -44,10 +47,14 @@ class TestCleanStackName:
     @staticmethod
     @pytest.mark.parametrize("name", ("", "   ", "\t\n"))
     def test_a_blank_name_raises(*, name) -> None:
-        with pytest.raises(InvalidStackNameError):
+        with pytest.raises(InvalidStackNameError) as caught:
             clean_stack_name(name)
+
+        assert str(caught.value) == BLANK
 
     @staticmethod
     def test_an_overlong_name_raises() -> None:
-        with pytest.raises(InvalidStackNameError):
+        with pytest.raises(InvalidStackNameError) as caught:
             clean_stack_name("s" * (MAX_NAME_LENGTH + 1))
+
+        assert str(caught.value) == OVERLONG
