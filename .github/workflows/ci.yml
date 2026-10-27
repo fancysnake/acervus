@@ -25,6 +25,8 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: mise run test:py:cov
+      # test:py:cov reports to the terminal only; Codecov reads the XML
+      - run: mise exec -- poetry run coverage xml
       - name: Upload Python coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
         if: success()
@@ -32,14 +34,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           flags: python
-          disable_search: true
-      - name: Upload client coverage to Codecov
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
-        if: success()
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage-client/lcov.info
-          flags: client
           disable_search: true
 
   quality:

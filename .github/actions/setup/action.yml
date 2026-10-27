@@ -7,7 +7,8 @@ runs:
   using: composite
   steps:
     - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
-    - run: mise settings experimental=true
-      shell: bash
+      with:
+        # mise.toml includes its tasks from a git:: source, still experimental
+        experimental: true
     - run: mise exec -- poetry install
       shell: bash
