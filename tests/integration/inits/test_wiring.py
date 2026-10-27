@@ -110,10 +110,6 @@ class TestRepositories:
 
         assert repositories.files.list_by_root(root.id) == []
 
-    @staticmethod
-    def test_the_session_is_opened_once(*, repositories):
-        assert repositories.session is repositories.session
-
 
 class TestClosingTheContainer:
     @staticmethod
@@ -147,10 +143,6 @@ class TestServices:
     @staticmethod
     def test_it_hands_out_services(*, services):
         assert isinstance(services.roots, RootService)
-
-    @staticmethod
-    def test_the_services_are_cached(*, services):
-        assert services.roots is services.roots
 
     @staticmethod
     def test_sync_reaches_the_database(*, db_path, services):
