@@ -14,9 +14,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
-      - run: mise settings experimental=true
-      - run: mise exec -- poetry install
+      - uses: ./.github/actions/setup
       - run: mise run docs:build
 
   # gh-deploy pushes the built site to the gh-pages branch, which Pages serves
@@ -31,7 +29,5 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0 # gh-deploy commits onto the existing gh-pages history
-      - uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834 # v5
-      - run: mise settings experimental=true
-      - run: mise exec -- poetry install
+      - uses: ./.github/actions/setup
       - run: mise exec -- poetry run mkdocs gh-deploy --force
