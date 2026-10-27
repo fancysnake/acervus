@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from acervus.pacts.transaction import TransactionProtocol
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
     from sqlalchemy.orm import Session
 
@@ -22,7 +22,7 @@ class SessionTransaction(TransactionProtocol):
         self._session = session
 
     @contextmanager
-    def atomic(self) -> Iterator[None]:
+    def atomic(self) -> Generator[None]:
         """Commit the session on a clean exit, roll it back on anything else.
 
         ``BaseException`` rather than ``Exception``: an interrupt or a
