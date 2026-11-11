@@ -18,6 +18,7 @@ SRC_PATHS = "src"
 TEST_PATHS = "tests"
 SCRIPT_PATHS = ""
 TOML_PATHS = ".taplo.toml pyproject.toml mise.toml tingle.toml"
+TEST_ENV_FILE = ".env.test"
 
 [task_config]
 includes = ["git::https://github.com/fancysnake/shared-configs.git//python.toml"]
