@@ -2,6 +2,26 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:best-practices", ":preserveSemverRanges"],
   "minimumReleaseAge": "7 days",
-  "prCreation": "not-pending",
-  "internalChecksFilter": "strict"
+  "minimumReleaseAgePackageManagerSync": true,
+  "packageRules": [
+    {
+      "description": "One PR for all small updates",
+      "groupName": "non-major dependencies",
+      "groupSlug": "non-major",
+      "matchUpdateTypes": ["minor", "patch", "digest"]
+    },
+    {
+      "description": "A 0.x minor can break, so it gets its own PR",
+      "matchCurrentVersion": "/^0\\./",
+      "matchUpdateTypes": ["minor"],
+      "groupName": null
+    },
+    {
+      "description": "requires-python allows only 3.14",
+      "matchManagers": ["mise"],
+      "matchPackageNames": ["python"],
+      "matchUpdateTypes": ["minor"],
+      "enabled": false
+    }
+  ]
 }
