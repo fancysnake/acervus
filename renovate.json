@@ -19,7 +19,7 @@
     {
       "description": "requires-python allows only 3.14",
       "matchManagers": ["mise"],
-      "matchPackageNames": ["python"],
+      "matchDepNames": ["python"],
       "matchUpdateTypes": ["minor"],
       "enabled": false
     }
