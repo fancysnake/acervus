@@ -3,5 +3,32 @@
   "extends": ["config:best-practices", ":preserveSemverRanges"],
   "minimumReleaseAge": "7 days",
   "prCreation": "not-pending",
-  "internalChecksFilter": "strict"
+  "internalChecksFilter": "strict",
+  "packageRules": [
+    {
+      "description": "One PR for all small updates",
+      "groupName": "non-major dependencies",
+      "groupSlug": "non-major",
+      "matchUpdateTypes": ["minor", "patch", "digest"]
+    },
+    {
+      "description": "A 0.x minor can break, so it gets its own PR. Must stay after the group rule above",
+      "matchCurrentVersion": "/^0\\./",
+      "matchUpdateTypes": ["minor"],
+      "groupName": null
+    },
+    {
+      "description": "Offer Python patches even when a newer minor exists",
+      "matchManagers": ["mise"],
+      "matchDepNames": ["python"],
+      "separateMinorPatch": true
+    },
+    {
+      "description": "requires-python pins a single minor version",
+      "matchManagers": ["mise"],
+      "matchDepNames": ["python"],
+      "matchUpdateTypes": ["minor"],
+      "enabled": false
+    }
+  ]
 }
